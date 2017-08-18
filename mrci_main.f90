@@ -1,40 +1,31 @@
 program mrci_main
-  use mrci_basis
+  use mrci_interactions
   implicit none
 
-  type(spd) :: jbas
-  integer :: ii,AA,num_refs,Aprot,Aneut 
-  character(200) :: fname
+  type(spd) :: mbas,jbas
+  type(tpd) :: tp_basis
+  integer :: ii,AA,num_refs,Aprot,Aneut ,q
+  character(200) :: input,ref_file,sp_file,int_file
   integer,allocatable,dimension(:,:) :: ref,basis
 
+  call getarg(1,input)
+  if (trim(input) == '') STOP "NEED INPUT FILE" 
+
+  call read_input_file(input,sp_file,int_file,ref_file,AA,Aprot,Aneut) 
+
+  call init_sp_basis(mbas,jbas,sp_file)
   
-  print*, 'Enter SP file: '
-  read*, fname 
-  call jbas%build(fname)
+  mbas%Abody = AA
+  mbas%Aprot = Aprot
+  mbas%Aneut = Aneut
 
-  print*, 'Enter number of nucleons'
-  read*, AA,Aprot,Aneut
+  call read_Ref_file(ref_file,num_refs,REF,AA)
 
-  jbas%Abody = AA
-  jbas%Aprot = Aprot
-  jbas%Aneut = Aneut  
-  print*, 'Enter number of references'
-  read*, num_refs
+  call generate_basis(mbas,ref,basis)
+  call generate_tp_basis(tp_basis,jbas)
+  call read_me2b(int_file,tp_basis)
 
-  allocate(ref(num_refs,AA))
-
-  write(*,'(A,I3,A)') 'Enter the ',num_refs, 'reference states, one by one'
-  do ii = 1, num_refs
-     read*, ref(ii,:)
-  end do
-  
-  call generate_basis(jbas,ref,basis)
-
-  ! do ii = 1,jbas%Ntot
-  !    print*, ii, jbas%nn(ii),jbas%ll(ii),jbas%jj(ii),jbas%mm(ii),jbas%tz(ii)
-  ! end do
-
-!
+  print*, ME2B(1)%X(1:12)
   
 end program mrci_main
   

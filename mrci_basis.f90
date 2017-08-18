@@ -1,24 +1,18 @@
 module mrci_basis
+  use mrci_aux
   implicit none
-
-  TYPE :: spd    ! single particle discriptor
-     integer :: Ntot, Jmax, Lmax,Njjcoup,nMax
-     integer :: n,l,j,t,m,Abody,Aneut,Aprot
-     real(8) :: e
-     integer, allocatable, dimension(:) :: nn, ll, jj, mm,tz,jlab
-     ! for clarity:  nn, ll, nshell are all the true value
-     ! jj is j+1/2 (so it's an integer) 
-     ! likewise itzp is 2*tz
-   contains
-     procedure :: build => init_sp_basis 
-  END TYPE spd
-
-  
+!!!===========================================================
+!!!===========================================================
 contains
-
-  subroutine init_sp_basis(this,fname)
+!!!===========================================================
+!!!===========================================================
+  subroutine init_sp_basis(mbas,jbas,fname)
+    !! basis descriptors for both the m-scheme and j-scheme
+    !! bases. The latter is needed because that's how we store
+    !! the interaction.    
     implicit none
-    class(spd),intent(inout) :: this
+
+    type(spd) :: mbas,jbas
     character(200) :: fname
     integer :: a,ii,ist,n,l,j,t,m
     real(8) :: e
@@ -28,26 +22,33 @@ contains
 
     open(unit=77,file=trim(fname))
 
-    this%Ntot = 0
+    mbas%Ntot = 0
     do
        read(77,*,iostat = ist) a,n,l,j,t,e
 
        if ( ist > 0 ) stop "Input Error: .sps file"
        if (ist < 0 ) exit
 
-       this%Ntot = this%Ntot + j + 1       
+       mbas%Ntot = mbas%Ntot + j + 1       
        
     end do
 
     rewind(77) 
 
-    this%Njjcoup = a 
-    allocate(this%nn(this%Ntot))
-    allocate(this%ll(this%Ntot))
-    allocate(this%jj(this%Ntot))
-    allocate(this%tz(this%Ntot))
-    allocate(this%mm(this%Ntot))
-    allocate(this%jlab(this%Ntot))
+    mbas%Njjcoup = a 
+    allocate(mbas%nn(mbas%Ntot))
+    allocate(mbas%ll(mbas%Ntot))
+    allocate(mbas%jj(mbas%Ntot))
+    allocate(mbas%tz(mbas%Ntot))
+    allocate(mbas%mm(mbas%Ntot))
+    allocate(mbas%jlab(mbas%Ntot))
+
+    allocate(jbas%nn(a))
+    allocate(jbas%ll(a))
+    allocate(jbas%jj(a))
+    allocate(jbas%tz(a))
+    allocate(jbas%jlab(a))
+
     ii = 1 
     do 
        read(77,*,iostat = ist) a,n,l,j,t,e
@@ -55,51 +56,59 @@ contains
        if ( ist > 0 ) stop "Input Error: .sps file"
        if (ist < 0 ) exit
 
-       this%nn(ii:ii+j) = n 
-       this%ll(ii:ii+j) = l
-       this%jj(ii:ii+j) = j
-       this%tz(ii:ii+j) = t
-       this%jlab(ii:ii+j) = a
+       mbas%nn(ii:ii+j) = n 
+       mbas%ll(ii:ii+j) = l
+       mbas%jj(ii:ii+j) = j
+       mbas%tz(ii:ii+j) = t
+       mbas%jlab(ii:ii+j) = a
 
        do  m = -j,j,2
-          this%mm(ii+(m+j)/2) = m
+          mbas%mm(ii+(m+j)/2) = m
        end do
-        ii = ii + j + 1
+       ii = ii + j + 1
+
+       jbas%nn(a) = n 
+       jbas%ll(a) = l
+       jbas%jj(a) = j
+       jbas%tz(a) = t
     end do
     
-    this%jmax = maxval(this%jj)
-    this%lmax = maxval(this%ll)
-    this%nmax = maxval(this%nn)
+    mbas%jmax = maxval(mbas%jj)
+    mbas%lmax = maxval(mbas%ll)
+    mbas%nmax = maxval(mbas%nn)
+
+    jbas%jmax = maxval(jbas%jj)
+    jbas%lmax = maxval(jbas%ll)
+    jbas%nmax = maxval(jbas%nn)
     
     close(77)
   end subroutine init_sp_basis
-
-
-
-  subroutine generate_basis(jbas,REF,BASIS)
+!!!===========================================================
+!!!===========================================================
+  subroutine generate_basis(mbas,REF,BASIS)
     !! this subroutine generates the reference states
     !! based on the one-body density matrix
     implicit none
 
-    type(spd) :: jbas
+    type(spd) :: mbas
     integer,allocatable,dimension(:,:) :: SD_BASIS,BASIS
     integer,dimension(:,:) :: REF
     integer :: Abody,ix,jx,kx,lx,num_refs,PAR,M,jin,lout,tout
     integer :: q,mout,nin,test,BigT
     integer,allocatable,dimension(:) :: valid
-    integer,dimension(jbas%Abody) :: newSD 
+    integer,dimension(mbas%Abody) :: newSD 
     logical :: present
 
-    Abody = jbas%Abody
+    Abody = mbas%Abody
 
     num_Refs = size(REF(:,1)) 
     allocate(SD_BASIS(14000,Abody)) 
 
     do ix = 1, num_Refs
-       call parity_M_and_T(REF(ix,:),jbas,PAR,M,BigT ) 
+       call parity_M_and_T(REF(ix,:),mbas,PAR,M,BigT ) 
        if( ( PAR .ne. 0 ) .or. (M .ne. 0) .or.&
-            (BigT .ne. (jbas%Aneut-jbas%Aprot)))  then
-          print*, ix,BigT,jbas%Aneut-jbas%Aprot
+            (BigT .ne. (mbas%Aneut-mbas%Aprot)))  then
+          print*, ix,BigT,mbas%Aneut-mbas%Aprot
           STOP "REFERENCES HAVE BAD QUANTUM NUMBERS."
        end if
        call sort_SD(REF(ix,:))
@@ -112,31 +121,31 @@ contains
     do ix = 1, num_refs
        do jx = 1, Abody 
 
-          lout = jbas%ll(REF(ix,jx))
-          mout = jbas%mm(REF(ix,jx))
-          tout = jbas%tz(REF(ix,jx))
+          lout = mbas%ll(REF(ix,jx))
+          mout = mbas%mm(REF(ix,jx))
+          tout = mbas%tz(REF(ix,jx))
           
-          do kx = 1, jbas%Ntot
+          do kx = 1, mbas%Ntot
 
              !! first check if this state has the right  
-             if (jbas%mm(kx) .ne. mout) cycle
-             if (mod(jbas%ll(kx)+lout,2).ne.0) cycle
-             if (jbas%tz(kx) .ne. tout) cycle
+             if (mbas%mm(kx) .ne. mout) cycle
+             if (mod(mbas%ll(kx)+lout,2).ne.0) cycle
+             if (mbas%tz(kx) .ne. tout) cycle
 
 
              !! IF we've made it here, this state is a candidate for a 1p1h excitation.
              !! Now we see if it's in the current SD
-             nin = jbas%nn(kx)
-             jin = jbas%jj(kx)
+             nin = mbas%nn(kx)
+             jin = mbas%jj(kx)
 
              
              present = .false. 
              do lx = 1, Abody
-                if (jbas%mm(lx) .ne. mout) cycle
-                if (jbas%ll(lx).ne. lout) cycle
-                if (jbas%tz(lx) .ne. tout) cycle
-                if (jbas%jj(lx).ne. jin) cycle
-                if (jbas%nn(lx) .ne. nin) cycle
+                if (mbas%mm(lx) .ne. mout) cycle
+                if (mbas%ll(lx).ne. lout) cycle
+                if (mbas%tz(lx) .ne. tout) cycle
+                if (mbas%jj(lx).ne. jin) cycle
+                if (mbas%nn(lx) .ne. nin) cycle
                 !if we're here, this means that this state is already in the SD
                 present = .true.
                 exit
@@ -186,17 +195,19 @@ contains
     
     !! check that nothing is wrong
     do ix = 1,q
-       call parity_M_and_T(BASIS(ix,:),jbas,PAR,M,BigT ) 
+       call parity_M_and_T(BASIS(ix,:),mbas,PAR,M,BigT ) 
        if( ( PAR .ne. 0 ) .or. (M .ne. 0) .or. &
-            (BigT .ne. (jbas%Aneut-jbas%Aprot)))  then
+            (BigT .ne. (mbas%Aneut-mbas%Aprot)))  then
           STOP "BASIS HAS BAD QUANTUM NUMBERS."
        end if
     end do
 
     
   end subroutine generate_basis
-
+!!!===========================================================
+!!!===========================================================
   subroutine sort_SD(ar)
+    ! dumb bubble sort
     implicit none
     
     integer,dimension(:) :: ar
@@ -216,69 +227,197 @@ contains
        end do
        n = newn
     end do
-  end subroutine sort_SD
-    
-    
-    
-  subroutine parity_M_and_T(state,jbas,PAR,M,T)
+  end subroutine sort_SD  
+!!!===========================================================
+!!!===========================================================                  
+  subroutine generate_tp_basis(tp_basis,jbas) 
     implicit none
-    
-    integer,dimension(:) :: state
-    integer :: ii,smp,smm,PAR,M,T,smt
+
+    integer :: Ntot,Lmax,eMax,lj,twol,twoj
+    integer :: ljMax,q,idx,idxx,i,j,a,Tz,Pi,JT
+    integer :: n1,j1,l1,t1,n2,j2,l2,t2,lj1,lj2
+    integer,allocatable,dimension(:,:) :: SPBljs
+    integer,allocatable,dimension(:) :: nMax_lj
+    integer,dimension(500) :: a_list
     type(spd) :: jbas
+    type(tpd) :: tp_basis 
+
+
+    a_list = 0
+!!! single particle ordering scheme from Heiko's code 
+    Ntot = jbas%Ntot   
+    Lmax = jbas%lmax
+    eMax = 2*jbas%nMax
+    ! populate lj array
+    lj = 0
+    do twol = 0, 2 * Lmax , 2
+       do  twoj = abs(twol - 1) , twol+1 , 2
+          lj=lj+1
+       end do
+    end do
+    ljMax = lj 
+    allocate(SPBljs(lj,2)) 
+    allocate(nMax_lj(lj))
     
-    smp = 0
-    smm = 0 
-    smt = 0
-    do ii = 1,size(state)
-       smp = smp + jbas%ll(state(ii))
-       smm = smm + jbas%mm(state(ii))
-       smt = smt + jbas%tz(state(ii))
+    lj = 0
+    do twol = 0, 2 * Lmax , 2
+       do  twoj = abs(twol - 1) , twol+1 , 2
+          lj=lj+1
+          SPBljs(lj,1) = twol
+          sPBljs(lj,2) = twoj
+          nMax_lj(lj) = (eMax - twol/2)/2
+       end do
     end do
 
-    PAR = mod(smp,2)
-    M = smm
-    T = smt
-  end subroutine parity_M_and_T
-    
-    
-    
-  character(6) function spec_not(t,n,j,l) 
-    implicit none
-    
-    integer,intent(in) :: t,j,l,n
-    character(1),dimension(6) :: l_let 
-    character(1) :: j_str,n_str,l_str
-    
-    l_let = (/'s','p','d','f','g','h'/) 
-    
-    write(n_str,'(I1)') n
-    write(j_str,'(I1)') j 
-    
-    if (l > 5) then 
-       l_str = 'x' 
-    else
-       l_str = l_let(l+1)
-    end if
-
-    if (t==-1) then
-       spec_not = 'p'//n_str//l_str//j_str//'/2'
-    else
-       spec_not = 'n'//n_str//l_str//j_str//'/2' 
-    end if
-  end function spec_not
-
- 
-          
-          
-          
-
-    
-
     
     
 
-  
 
-  
-end module 
+    q = 0
+    ! count the blocks
+   
+    do Tz = 1 , -1, -1  
+       do Pi = 0,1
+          do JT = 0, 2*jbas%Jmax,2 
+                    
+             ! count states in the block
+             a = 0
+             
+             do lj1 = 1, ljMax
+                do lj2 = 1, ljMax
+                   
+                   j1 = SPBljs(lj1,2) 
+                   j2 = SPBljs(lj2,2)
+                   l1 = SPBljs(lj1,1)/2
+                   l2 = SPBljs(lj2,1)/2
+                   
+                   if ( ( JT < abs(j1-j2) ) .or. (JT > j1 + j2) ) cycle
+                   if ( mod(l1 + l2 ,2 ) .ne.Pi ) cycle 
+                                      
+                   do n1 = 0,nMax_lj(lj1)
+                      idx = (lj1-1) * (nMax_lj(1) +1 ) +n1 
+                      do n2 = 0,nMax_lj(lj2) 
+                         idxx = (lj2-1) * (nMax_lj(1) +1 ) +n2                 
+                         
+                         if ( (Tz .ne. 0) .and. (idx > idxx) ) cycle
+                         if ( (mod(JT/2,2) == 1) .and. (lj1==lj2) .and. &
+                              (n1==n2) .and. (Tz .ne. 0) ) cycle
+                         
+                         a = a + 1
+                         
+                      end do
+                   end do
+                end do
+             end do
+
+             if (a ==0 ) cycle
+             ! we've got a block here
+             q = q + 1
+             a_list(q) = a
+
+          end do
+       end do
+    end do
+
+    tp_basis%bMax = q
+    tp_basis%aMaxMax = maxval(a_list)    
+
+    allocate(tp_basis%block(q))   
+
+    do q = 1, tp_basis%bMax
+       tp_basis%block(q)%aMax = a_list(q) 
+       allocate(tp_basis%block(q)%qnums(a_list(q),2))
+    end do
+    ! okay let's restart
+
+    q = 0
+    ! heiko's code calls protons 1 and neutrons 0
+    
+    
+    do Tz = 1 , -1, -1  
+       do Pi = 0,1
+          do JT = 0, 2*jbas%Jmax,2 
+
+             q = q + 1
+             select case ( Tz)
+             case ( -1 ) 
+                t1 = -1
+                t2 = -1
+             case ( 0 ) 
+                t1 = 1 
+                t2 = -1
+             case ( 1 ) 
+                t1 = 1
+                t2 = 1 
+             end select
+
+             a = 0
+
+             do lj1 = 1, ljMax
+                do lj2 = 1, ljMax
+
+                   j1 = SPBljs(lj1,2) 
+                   j2 = SPBljs(lj2,2)
+                   l1 = SPBljs(lj1,1)/2
+                   l2 = SPBljs(lj2,1)/2
+
+                   if ( ( JT < abs(j1-j2) ) .or. (JT > j1 + j2) ) cycle
+                   if ( mod(l1 + l2 ,2 ) .ne.Pi ) cycle 
+
+                   do n1 = 0,nMax_lj(lj1)
+                      idx = (lj1-1) * (nMax_lj(1) +1 ) +n1 
+                      do n2 = 0,nMax_lj(lj2) 
+                         idxx = (lj2-1) * (nMax_lj(1) +1 ) +n2                 
+                         
+                         if ( (Tz .ne. 0) .and. (idx > idxx) ) cycle
+                         if ( (mod(JT/2,2) == 1) .and. (lj1==lj2) .and. &
+                              (n1==n2) .and. (Tz .ne. 0) ) cycle
+
+                         ! now search for sp labels
+                         do i = 1, jbas%Ntot 
+                            if ( jbas%jj(i) .ne. j1 ) cycle
+                            if ( jbas%nn(i) .ne. n1 ) cycle
+                            if ( jbas%ll(i) .ne. l1 ) cycle
+                            if ( jbas%tz(i) .ne. t1 ) cycle                     
+                            exit
+                         end do
+
+                         do j = 1, jbas%Ntot 
+                            if ( jbas%jj(j) .ne. j2 ) cycle
+                            if ( jbas%nn(j) .ne. n2 ) cycle
+                            if ( jbas%ll(j) .ne. l2 ) cycle
+                            if ( jbas%tz(j) .ne. t2 ) cycle                     
+                            exit
+                         end do
+
+
+                         a = a + 1
+
+                         tp_basis%block(q)%qnums(a,1) = i 
+                         tp_basis%block(q)%qnums(a,2) = j
+
+
+                      end do
+                   end do
+                end do
+             end do
+
+             if  (a == 0 ) then
+                ! this wasn't a real block...
+                q = q -1
+             else
+                tp_basis%block(q)%J = JT
+                tp_basis%block(q)%PAR = Pi
+                tp_basis%block(q)%Tz = Tz
+             end if
+                
+             
+          end do
+       end do
+    end do
+           
+    
+  end subroutine generate_tp_basis
+
+    
+end module mrci_basis

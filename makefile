@@ -9,7 +9,7 @@ PFLAGS = -O3 -pg
 
 CXXFLAGS = -std=c++11 -O3
 
-LIBS =  #-L/user/local/lib/ -llapack -lblas -larpack -lz
+LIBS =  -lz #-L/user/local/lib/ -llapack -lblas -larpack -lz
 
 obfiles = bin
 modfiles = md
