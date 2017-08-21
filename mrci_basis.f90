@@ -6,13 +6,12 @@ module mrci_basis
 contains
 !!!===========================================================
 !!!===========================================================
-  subroutine init_sp_basis(mbas,jbas,fname)
+  subroutine init_sp_basis(fname)
     !! basis descriptors for both the m-scheme and j-scheme
     !! bases. The latter is needed because that's how we store
     !! the interaction.    
     implicit none
 
-    type(spd) :: mbas,jbas
     character(200) :: fname
     integer :: a,ii,ist,n,l,j,t,m
     real(8) :: e
@@ -20,7 +19,7 @@ contains
 
     fname = adjustl(fname)
 
-    open(unit=77,file=trim(fname))
+    open(unit=77,file=trim(SP_DIR)//trim(fname))
 
     mbas%Ntot = 0
     do
@@ -43,6 +42,7 @@ contains
     allocate(mbas%mm(mbas%Ntot))
     allocate(mbas%jlab(mbas%Ntot))
 
+    jbas%Ntot=a
     allocate(jbas%nn(a))
     allocate(jbas%ll(a))
     allocate(jbas%jj(a))
@@ -85,12 +85,11 @@ contains
   end subroutine init_sp_basis
 !!!===========================================================
 !!!===========================================================
-  subroutine generate_basis(mbas,REF,BASIS)
+  subroutine generate_basis(REF,BASIS)
     !! this subroutine generates the reference states
     !! based on the one-body density matrix
     implicit none
 
-    type(spd) :: mbas
     integer,allocatable,dimension(:,:) :: SD_BASIS,BASIS
     integer,dimension(:,:) :: REF
     integer :: Abody,ix,jx,kx,lx,num_refs,PAR,M,jin,lout,tout
@@ -230,22 +229,22 @@ contains
   end subroutine sort_SD  
 !!!===========================================================
 !!!===========================================================                  
-  subroutine generate_tp_basis(tp_basis,jbas) 
+  subroutine generate_tp_basis(tp_basis) 
     implicit none
 
-    integer :: Ntot,Lmax,eMax,lj,twol,twoj
-    integer :: ljMax,q,idx,idxx,i,j,a,Tz,Pi,JT
+    integer :: Ntot,Lmax,eMax,lj,twol,twoj,j_min,j_max,numJ
+    integer :: ljMax,q,idx,idxx,i,j,a,Tz,Pi,JT,x
     integer :: n1,j1,l1,t1,n2,j2,l2,t2,lj1,lj2
     integer,allocatable,dimension(:,:) :: SPBljs
     integer,allocatable,dimension(:) :: nMax_lj
     integer,dimension(500) :: a_list
-    type(spd) :: jbas
     type(tpd) :: tp_basis 
 
 
     a_list = 0
 !!! single particle ordering scheme from Heiko's code 
     Ntot = jbas%Ntot   
+
     Lmax = jbas%lmax
     eMax = 2*jbas%nMax
     ! populate lj array
@@ -269,9 +268,27 @@ contains
        end do
     end do
 
+    allocate(jbas%amap(Ntot*(Ntot+1)/2))
+    allocate(jbas%qmap(Ntot*(Ntot+1)/2)) 
+    ! v_elem to find matrix elements
+    do i = 1,Ntot
+       do j = i,Ntot
+          
+          j_min = abs(jbas%jj(i)-jbas%jj(j))
+          j_max = jbas%jj(i) + jbas%jj(j) 
+          
+          numJ = (j_max - j_min)/2 + 2
+          
+          x = bosonic_tp_index(i,j,Ntot) 
+          allocate(jbas%amap(x)%Z(numJ))
+          allocate(jbas%qmap(x)%Z(numJ)) 
+          jbas%amap(x)%Z = 0
+          jbas%amap(x)%Z(1) = j_min
+          jbas%qmap(x)%Z = 0
+       end do
+    end do
+        
     
-    
-
 
     q = 0
     ! count the blocks
@@ -392,11 +409,21 @@ contains
 
 
                          a = a + 1
-
+                         
                          tp_basis%block(q)%qnums(a,1) = i 
                          tp_basis%block(q)%qnums(a,2) = j
 
-
+                         if (j < i ) then
+                            x = bosonic_tp_index(j,i,Ntot) 
+                            j_min = jbas%amap(x)%Z(1)
+                            jbas%amap(x)%Z((JT-j_min)/2+2) = -1*a !multiply a by -1 if we permuted indices. 
+                         else
+                            x = bosonic_tp_index(i,j,Ntot) 
+                            j_min = jbas%amap(x)%Z(1)
+                            jbas%amap(x)%Z((JT-j_min)/2+2) = a
+                         end if
+                         
+                         jbas%qmap(x)%Z((JT-j_min)/2+2) = q                         
                       end do
                    end do
                 end do
@@ -419,5 +446,30 @@ contains
     
   end subroutine generate_tp_basis
 
+
+  integer function get_tp_block_index(i,j,JT)
+    implicit none
+
+    integer :: i,j,JT,j_min,Ntot,x
+
+    Ntot = jbas%Ntot
+    x = bosonic_tp_index(i,j,Ntot) 
+    j_min = jbas%amap(x)%Z(1) 
+    
+    get_tp_block_index=jbas%qmap(x)%Z((JT-j_min)/2+2) 
+
+  end function get_tp_block_index
+
+  integer function TP_index(i,j,JT)
+    implicit none
+    
+    integer :: i,j,JT,j_min,Ntot,x
+    
+    Ntot = jbas%Ntot
+    x = bosonic_tp_index(i,j,Ntot) 
+    j_min = jbas%amap(x)%Z(1) 
+    TP_index= jbas%amap(x)%Z((JT-j_min)/2+2) 
+  
+  end function TP_index
     
 end module mrci_basis

@@ -7,9 +7,107 @@ module mrci_interactions
      real(8),allocatable,dimension(:) :: X 
   end type block_mat
 
+    type :: block_mat_full
+     real(8),allocatable,dimension(:,:) :: XX
+  end type block_mat_full
+
+
   type(block_mat),allocatable,dimension(:),public :: ME2B
+  type(block_mat_full),allocatable,dimension(:,:),public :: ME1B
+  real(8),public :: ME0B
+
+  
 contains
 
+  subroutine read_me1b(intfile)
+    implicit none
+
+    real(8) :: me
+    integer :: q,a,totme,buflen,ist,bMax,b,endpos
+    integer :: a1,a2,a1len,a2len,aa,menpos,lenme,ii
+    integer ::  lj,t,l,twoj,nMax,eMax,Lmax
+    character(200) :: intfile,me1bfile 
+    character(20) :: mes,memstr
+    character(3) :: units
+    character(10) :: fm,fma2,fma1,fme
+    type(c_ptr) :: buf
+    integer(c_int) :: hndle,sz
+    character(kind=C_CHAR,len=200) :: buffer
+       
+    me1bfile = intfile(1:len(trim(intfile))-5)//'1b.gz'
+    
+    hndle=gzOpen(trim(ME_DIR)//trim(adjustl(me1bfile))//achar(0),"r"//achar(0))
+
+    Lmax = mbas%lmax
+    eMax = 2*mbas%nmax
+    sz = 200
+
+    allocate(me1b(2,2*Lmax+1))
+    
+    do t = 0,1 !neutrons are 0, protons 1
+       lj = 0
+       do l = 0, Lmax
+          do  twoj = abs(2*l - 1) , 2*l+1 , 2
+             lj=lj+1             
+             nMax = (eMax - l)/2
+             allocate(me1b(t+1,lj)%XX(nMax+1,nMax+1))
+             me1b(t+1,lj)%XX=0.d0
+          end do
+       end do
+    end do
+
+
+    ! read verion line, and then some integer
+    buf=gzGets(hndle,buffer,sz) 
+    ! the integer probably has to do with the file size
+    buf=gzGets(hndle,buffer,sz) 
+
+      
+    read(buffer(1:4),'(I4)',iostat=ist) bMax 
+    if (ist .ne. 0 ) then 
+       read(buffer(1:3),'(I3)',iostat=ist) bMax 
+       if (ist .ne. 0 ) then 
+          read(buffer(1:2),'(I2)',iostat=ist) bMax
+          if (ist .ne. 0 ) then 
+             read(buffer(1:1),'(I1)',iostat=ist) bMax
+          end if
+       end if
+    end if
+    
+    ! me0b 
+    buf=gzGets(hndle,buffer,sz) 
+
+    read(buffer(1:7),'(f7.1)')  me
+    
+    
+    
+    if (buffer(1:1)=='-') then
+       lenme = 1+digets(floor(abs(me)))+7
+    else
+       lenme = digets(floor(abs(me)))+7
+    end if
+
+    mes = fmtlen(lenme)
+
+    read(buffer(1:lenme),'(f'//trim(mes)//'.6)')  ME0B
+
+    !! the rest of the file is "t lj  a  aa  me"
+    do   ii = 1, bMax 
+       
+       buf=gzGets(hndle,buffer,sz)
+       
+       read(buffer(1:2),'(I2)') t
+       read(buffer(3:5),'(I3)') lj
+       read(buffer(6:9),'(I4)') a1
+       read(buffer(10:12),'(I3)') a2
+       read(buffer(13:24),'(f11.6)') me1b(t+1,lj+1)%XX(a1+1,a2+1) 
+       
+    end do
+    
+    sz=gzclose(hndle)
+  end subroutine read_me1b
+    
+   
   subroutine read_me2b(intfile,tp_basis)
     implicit none
 
@@ -55,7 +153,7 @@ contains
     write(*,*) "Reading interaction from "//trim(intfile)//"..."
 
 
-    hndle = gzOpen(trim(intfile)//achar(0),"r"//achar(0))
+    hndle = gzOpen(trim(ME_DIR)//trim(intfile)//achar(0),"r"//achar(0))
     sz = 200
 
     buf=gzGets(hndle,buffer,sz)  !! comments in file
@@ -163,6 +261,117 @@ contains
         
   end subroutine read_me2b
     
+
+
+  real(8) function get_me1b(a,b)
+    ! a and b are m-scheme indeces
+    implicit none
+
+    integer :: a,b,lj,t
+    
+    if (mbas%mm(a) .ne. mbas%mm(b) ) then
+       get_me1b = 0.d0
+       return
+    end if
+
+    if (mbas%ll(a) .ne. mbas%ll(b) ) then
+       get_me1b = 0.d0
+       return
+    end if
+
+    if (mbas%jj(a) .ne. mbas%jj(b) ) then
+       get_me1b = 0.d0
+       return
+    end if
+
+    if (mbas%tz(a) .ne. mbas%tz(b) ) then
+       get_me1b = 0.d0
+       return       
+    end if
+
+    t = (1-mbas%tz(a))/2
+
+    if (mbas%ll(a) == 0 )then
+       lj = 1
+    else
+       lj = 1+mbas%ll(a) + (mbas%jj(a)-1)/2 
+    end if
+
+    get_me1b = me1b(t+1,lj)%XX(mbas%nn(a)+1,mbas%nn(b)+1 )
+
+
+  end function get_me1b
+    
+    
+  real(8) function get_me2b(a,b,c,d,tp_Basis)
+    implicit none
+
+    type(tpd) :: tp_basis
+    integer :: JT,j_min,j_start,j_end
+    integer :: a,b,c,d,ja,jb,jc,jd,MT,q
+    integer :: ax,bx,cx,dx
+    integer :: ma,mb,mc,md ,A1,A2,BB,Ntot,Amin,Amax,pre
+    real(8) :: me,dcgi
+    
+    ja = mbas%jj(a)
+    jb = mbas%jj(b)
+    jc = mbas%jj(c)
+    jd = mbas%jj(d) 
+
+    ma = mbas%mm(a)
+    mb = mbas%mm(b)
+    mc = mbas%mm(c)
+    md = mbas%mm(d) 
+    
+    if ((ma+mb).ne.(mc+md) ) then
+       get_me2b = 0.d0
+       return
+    end if
+    
+    if ((mbas%tz(a)+mbas%tz(b) ).ne.(mbas%tz(c)+mbas%tz(d))) then
+       get_me2b = 0.d0
+       return
+    end if
+
+    if (mod(mbas%ll(a)+mbas%ll(b)+mbas%ll(c)+mbas%ll(d),2).ne.0) then
+       get_me2b = 0.d0
+       return
+    end if
+    
+    j_start = max(abs(ja-jb),abs(jc-jd))
+    j_end = min(ja+jb,jc+jd)
+
+    MT = ma+mb
+
+    me = 0.d0
+
+    ax = mbas%jlab(a)
+    bx = mbas%jlab(b)
+    cx = mbas%jlab(c)
+    dx = mbas%jlab(d)
+
+    print*, ax,bx,cx,dx
+    do JT = j_start,j_end,2
+       q = get_tp_block_index(ax,bx,JT)
+       if (q==0) cycle
+       Ntot = tp_Basis%block(q)%aMax
+       A1 = TP_index(ax,bx,JT)       
+       A2 = TP_index(cx,dx,JT)
+
+       Amin = min(abs(A1),abs(A2))
+       Amax = max(abs(A1),abs(A2)) 
+       pre = sign(1,A1)*sign(1,A2)
+
+       
+       me = me + ME2B(q)%X(bosonic_Tp_index(Amin,Amax,Ntot)) &
+            *dcgi(ja,ma,jb,mb,JT,MT)*dcgi(jc,mc,jd,md,JT,MT)*pre
+       print*, JT, ME2B(q)%X(bosonic_Tp_index(Amin,Amax,Ntot)),q
+    end do
+
+    get_me2b = me
+  end function get_me2b
+    
+
     
     
  end module

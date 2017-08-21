@@ -4,38 +4,42 @@ module mrci_aux
 !!!
 !!! character(6) function spec_not(t,n,j,l) spectral notation printer  
 !!!
+implicit none
+!!!
+TYPE :: int_vec
+   integer,allocatable,dimension(:) :: Z
+END TYPE int_vec
 
 
-
-
-  implicit none
 !!!===========================================================
 !!!===========================================================
-  TYPE :: spd    ! single particle discriptor
-     integer :: Ntot, Jmax, Lmax,Njjcoup,nMax
-     integer :: n,l,j,t,m,Abody,Aneut,Aprot
-     real(8) :: e
-     integer, allocatable, dimension(:) :: nn, ll, jj, mm,tz,jlab
-     ! for clarity:  nn, ll, nshell are all the true value
-     ! jj is j+1/2 (so it's an integer) 
-     ! likewise itzp is 2*tz
-  END TYPE spd
+TYPE :: spd    ! single particle discriptor
+   integer :: Ntot, Jmax, Lmax,Njjcoup,nMax
+   integer :: n,l,j,t,m,Abody,Aneut,Aprot
+   real(8) :: e
+   integer, allocatable, dimension(:) :: nn, ll, jj, mm,tz,jlab
+   type(int_vec),allocatable,dimension(:) :: amap,qmap
+   ! for clarity:  nn, ll, nshell are all the true value
+   ! jj is j+1/2 (so it's an integer) 
+   ! likewise itzp is 2*tz
+END TYPE spd
 !!!===========================================================
 !!!===========================================================
-  TYPE :: block_descript
-     integer :: aMax,J,Tz,PAR
-     integer,allocatable,dimension(:,:) :: qnums
-  END type block_descript
+TYPE :: block_descript
+   integer :: aMax,J,Tz,PAR
+   integer,allocatable,dimension(:,:) :: qnums
+END type block_descript
 !!!===========================================================
 !!!===========================================================
-  TYPE :: tpd
-     integer :: bMax,aMaxMax
-     type(block_descript),allocatable,dimension(:) :: block 
-  END type tpd
+TYPE :: tpd
+   integer :: bMax,aMaxMax
+   type(block_descript),allocatable,dimension(:) :: block 
+END type tpd
 !!!===========================================================
 !!!===========================================================
   
-
+type(spd),public :: jbas,mbas
+character(500) :: ME_DIR,SP_DIR,INI_DIR,OUTPUT_DIR
      
 contains
 !!!===========================================================
@@ -46,12 +50,21 @@ contains
     character(200) :: spfile,intfile,finput,reffile 
     integer :: AA,Aprot,Aneut
 
+    call getenv("MRCI_SP_FILES",SP_DIR)
+    SP_DIR=adjustl(SP_DIR)
+    call getenv("MRCI_INIFILES",INI_DIR)
+    INI_DIR=adjustl(INI_DIR)
+    call getenv("MRCI_OUTPUT",OUTPUT_DIR)
+    OUTPUT_DIR=adjustl(OUTPUT_DIR)
+    call getenv("MRCI_ME_FILES",ME_DIR)
+    ME_DIR=adjustl(ME_DIR)
+    
     finput = adjustl(finput)
-    open(unit=45,file=trim(finput)) 
+    open(unit=45,file=trim(INI_DIR)//trim(finput)) 
 
     read(45,*) !!! Enter SP filee
     read(45,*) spfile
-
+    
     read(45,*) !!! Enter INT file
     read(45,*) intfile
 
@@ -60,9 +73,11 @@ contains
 
     read(45,*) !!!Enter number of nucleons (A,Z,N) 
     read(45,*) AA,Aprot,Aneut
-    
-
+   
     close(45)
+    
+    call dcgi00()
+
   end subroutine read_input_file
 !!!===========================================================
 !!!===========================================================
@@ -74,7 +89,7 @@ contains
     integer,allocatable,dimension(:,:) :: ref
 
     reffile = adjustl(reffile)
-    open(unit=45,file=trim(reffile)) 
+    open(unit=45,file=trim(INI_DIR)//trim(reffile)) 
 
     read(45,*) !! Enter number of refs
     read(45,*) num_refs
@@ -161,5 +176,40 @@ contains
     fmtlen=adjustl(fmt)
 
   end function fmtlen
+
+  subroutine print_matrix(matrix)
+    implicit none 
+
+    integer :: i,m1,m2 
+    real(8),dimension(:,:) :: matrix
+    character(1) :: y
+    character(10) :: fmt2
+
+    m1=size(matrix(1,:))
+    m2=size(matrix(:,1)) 
+
+    write(y,'(i1)') m1
+
+    fmt2= '('//y//'(f14.8))'	
+
+    print*
+    do i=1,m2
+       write(*,fmt2) matrix(i,:)
+    end do
+    print* 
+
+  end subroutine print_matrix
+!=====================================================
+integer function bosonic_tp_index(i,j,n)
+  ! n is total number of sp states
+  ! assume i <= j 
+  implicit none 
+  
+  integer :: i,j,n
+  
+  bosonic_tp_index = n*(i-1) + (3*i-i*i)/2 + j - i 
+  
+end function 
+
   
   end module mrci_aux
