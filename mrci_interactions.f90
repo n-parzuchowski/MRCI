@@ -12,16 +12,18 @@ module mrci_interactions
   end type block_mat_full
 
 
-  type(block_mat),allocatable,dimension(:),public :: ME2B
-  type(block_mat_full),allocatable,dimension(:,:),public :: ME1B
+  type(block_mat),allocatable,dimension(:),public :: ME2B,Lambda2b
+  type(block_mat_full),allocatable,dimension(:,:),public :: ME1B,Lambda1b
   real(8),public :: ME0B
 
   
 contains
 
-  subroutine read_me1b(intfile)
+  subroutine read_me1b(z0,z1,intfile)
     implicit none
 
+    type(block_mat_full),allocatable,dimension(:,:) :: z1 
+    real(8) :: z0 
     real(8) :: me
     integer :: q,a,totme,buflen,ist,bMax,b,endpos
     integer :: a1,a2,a1len,a2len,aa,menpos,lenme,ii
@@ -42,7 +44,7 @@ contains
     eMax = 2*mbas%nmax
     sz = 200
 
-    allocate(me1b(2,2*Lmax+1))
+    allocate(z1(2,2*Lmax+1))
     
     do t = 0,1 !neutrons are 0, protons 1
        lj = 0
@@ -50,8 +52,8 @@ contains
           do  twoj = abs(2*l - 1) , 2*l+1 , 2
              lj=lj+1             
              nMax = (eMax - l)/2
-             allocate(me1b(t+1,lj)%XX(nMax+1,nMax+1))
-             me1b(t+1,lj)%XX=0.d0
+             allocate(z1(t+1,lj)%XX(nMax+1,nMax+1))
+             z1(t+1,lj)%XX=0.d0
           end do
        end do
     end do
@@ -78,9 +80,7 @@ contains
     buf=gzGets(hndle,buffer,sz) 
 
     read(buffer(1:7),'(f7.1)')  me
-    
-    
-    
+        
     if (buffer(1:1)=='-') then
        lenme = 1+digets(floor(abs(me)))+7
     else
@@ -89,7 +89,7 @@ contains
 
     mes = fmtlen(lenme)
 
-    read(buffer(1:lenme),'(f'//trim(mes)//'.6)')  ME0B
+    read(buffer(1:lenme),'(f'//trim(mes)//'.6)')  z0 
 
     !! the rest of the file is "t lj  a  aa  me"
     do   ii = 1, bMax 
@@ -100,7 +100,7 @@ contains
        read(buffer(3:5),'(I3)') lj
        read(buffer(6:9),'(I4)') a1
        read(buffer(10:12),'(I3)') a2
-       read(buffer(13:24),'(f11.6)') me1b(t+1,lj+1)%XX(a1+1,a2+1) 
+       read(buffer(13:24),'(f11.6)') z1(t+1,lj+1)%XX(a1+1,a2+1) 
        
     end do
     
@@ -108,9 +108,10 @@ contains
   end subroutine read_me1b
     
    
-  subroutine read_me2b(intfile,tp_basis)
+  subroutine read_me2b(z2,intfile,tp_basis)
     implicit none
 
+    type(block_mat),allocatable,dimension(:) :: z2
     type(tpd) :: tp_basis
     integer :: q,a,totme,buflen,ist,bMax,b,endpos
     integer :: a1,a2,a1len,a2len,aa,menpos,lenme,ii
@@ -119,17 +120,18 @@ contains
     character(20) :: mes,memstr
     character(3) :: units
     character(10) :: fm,fma2,fma1,fme
+    logical :: do_read,get_out
     type(c_ptr) :: buf
     integer(c_int) :: hndle,sz
     character(kind=C_CHAR,len=200) :: buffer
   
     
-    allocate(ME2B(tp_basis%bMax))
+    allocate(z2(tp_basis%bMax))
 
     totme = 0
     do q = 1, tp_basis%bMax
        a = tp_basis%block(q)%aMax
-       allocate(ME2B(q)%X(a*(a+1)/2))
+       allocate(z2(q)%X(a*(a+1)/2))
        totme = totme + a*(a+1)/2 
     end do
 
@@ -202,10 +204,12 @@ contains
 
     sz= 200
 
+    do_read=.true. 
     do q = 1, tp_basis%bMax
        buf=gzGets(hndle,buffer,sz) !! empty line
        buf=gzGets(hndle,buffer,sz) !! comment
 
+       get_out = .false. 
        ii = 1
        do a1 = 1 , tp_basis%block(q)%aMax
           a1len = digets(a1-1)          
@@ -214,12 +218,22 @@ contains
              a2len = digets(a2-1) 
              fma2 = fmtlen(a2len+2)
 
-             buf=gzGets(hndle,buffer,sz)
 
+             if (do_read) buf=gzGets(hndle,buffer,sz)
+             do_read = .true.
+             
              !!! all of this is because gzgets sucks in fortran
              menpos = a1len+a2len+5
-             read( buffer(menpos:menpos+9),'(f10.2)') me
 
+             read( buffer(menpos:menpos+9),'(f10.2)',iostat=ist) me
+             if (ist .ne. 0) then
+                ! we've reached the end of the block
+                get_out = .true.
+                exit
+             end if
+             
+             
+             
              lenme = digets(floor(abs(me))) 
              
              if (buffer(menpos:menpos) == '-') then
@@ -230,30 +244,42 @@ contains
                 endpos = menpos+8+lenme
              end if
 
-             read(buffer(1:2+a1len),'(I'//trim(fma1)//')')  a
-             read(buffer(3+a1len:4+a1len+a2len),'(I'//trim(fma2)//')') aa      
-             read(buffer(menpos:endpos) ,'(f'//trim(fme)//'.8)') me
+!             print*, q, a1, a2, buffer(1:10)
+             read(buffer(1:2+a1len),'(I'//trim(fma1)//')',iostat=ist)  a
 
+             if(ist .ne. 0) then
+                !! the correct index was not read
+                do_read = .false.
+                cycle
+             end if
+             
+             read(buffer(3+a1len:4+a1len+a2len),&
+                  '(I'//trim(fma2)//')',iostat=ist) aa
+
+             if(ist .ne. 0) then
+                !! the correct index was not read
+                do_read = .false.
+                cycle
+             end if
+             
+             
              if ((a+1) .ne. a1 ) then
-                print*, "first index doesn't match"
-                print*, "block ",q
-                print*, "basis: ",a1
-                print*, "INT:", a+1
-                stop
+                do_read = .false. 
+                cycle 
              end if
 
              if ((aa+1) .ne. a2 ) then
-                print*, "second index doesn't match"
-                print*, "block ",q
-                print*, "basis: ",a2
-                print*, "INT:", aa+1
-                stop
+                 do_read = .false. 
+                cycle
              end if
+             
+             read(buffer(menpos:endpos) ,'(f'//trim(fme)//'.8)') me
 
-             ME2B(q)%X(ii) = me
+             z2(q)%X(ii) = me
              ii = ii +1
              
           end do
+          if (get_out) exit
        end do
     end do
     sz= gzClose(hndle) 
@@ -263,10 +289,11 @@ contains
     
 
 
-  real(8) function get_me1b(a,b)
-    ! a and b are m-scheme indeces
+  real(8) function get_me1b(a,b,z1)
+    ! a and b are m-scheme indices
     implicit none
 
+    type(block_mat_full),dimension(:,:) :: z1
     integer :: a,b,lj,t
     
     if (mbas%mm(a) .ne. mbas%mm(b) ) then
@@ -297,21 +324,162 @@ contains
        lj = 1+mbas%ll(a) + (mbas%jj(a)-1)/2 
     end if
 
-    get_me1b = me1b(t+1,lj)%XX(mbas%nn(a)+1,mbas%nn(b)+1 )
+    get_me1b = z1(t+1,lj)%XX(mbas%nn(a)+1,mbas%nn(b)+1 )
 
 
   end function get_me1b
-    
-    
-  real(8) function get_me2b(a,b,c,d,tp_Basis)
+
+    real(8) function get_Jme1b(a,b,z1)
+    ! a and b are j-scheme indices
     implicit none
 
+    type(block_mat_full),dimension(:,:) :: z1
+    integer :: a,b,lj,t
+    
+
+    if (jbas%ll(a) .ne. jbas%ll(b) ) then
+       get_Jme1b = 0.d0
+       return
+    end if
+
+    if (jbas%jj(a) .ne. jbas%jj(b) ) then
+       get_Jme1b = 0.d0
+       return
+    end if
+
+    if (jbas%tz(a) .ne. jbas%tz(b) ) then
+       get_Jme1b = 0.d0
+       return       
+    end if
+
+    t = (1-jbas%tz(a))/2
+
+    if (jbas%ll(a) == 0 )then
+       lj = 1
+    else
+       lj = 1+jbas%ll(a) + (jbas%jj(a)-1)/2 
+    end if
+
+    get_Jme1b = z1(t+1,lj)%XX(jbas%nn(a)+1,jbas%nn(b)+1 )
+
+
+  end function get_Jme1b
+
+  real(8) function get_Jme2b(ay,by,cy,dy,JT,z2,tp_Basis)
+    !! UNNORMALIZED V^2_{ABCD}  jbas indices
+    implicit none
+
+    type(block_mat),dimension(:) :: z2
     type(tpd) :: tp_basis
     integer :: JT,j_min,j_start,j_end
     integer :: a,b,c,d,ja,jb,jc,jd,MT,q
-    integer :: ax,bx,cx,dx
+    integer :: ax,bx,cx,dx,ay,by,cy,dy
     integer :: ma,mb,mc,md ,A1,A2,BB,Ntot,Amin,Amax,pre
     real(8) :: me,dcgi
+
+    pre = 1
+
+    ja = jbas%jj(ay)
+    jb = jbas%jj(by)
+    jc = jbas%jj(cy)
+    jd = jbas%jj(dy) 
+
+    a = ay
+    b = by
+    if ( ay > by ) then
+       b = ay
+       a = by       
+       pre = pre*(-1)**((ja-jb+JT)/2) 
+    end if
+    
+    c = cy
+    d = dy
+    if ( cy > dy ) then
+       d = cy
+       c = dy
+       pre = pre*(-1)**((jc-jd+JT)/2) 
+    end if
+
+    ja = jbas%jj(a)
+    jb = jbas%jj(b)
+    jc = jbas%jj(c)
+    jd = jbas%jj(d) 
+
+    
+    if ((jbas%tz(a)+jbas%tz(b) ).ne.(jbas%tz(c)+jbas%tz(d))) then
+       get_Jme2b = 0.d0
+       return
+    end if
+
+    if (mod(jbas%ll(a)+jbas%ll(b)+jbas%ll(c)+jbas%ll(d),2).ne.0) then
+       get_Jme2b = 0.d0
+       return
+    end if
+
+    me = 0.d0
+
+    q = get_tp_block_index(a,b,JT)
+    if (q==0) then
+       get_Jme2b=0.d0
+       return
+    end if
+       
+    Ntot = tp_Basis%block(q)%aMax
+    A1 = TP_index(a,b,JT)       
+    A2 = TP_index(c,d,JT)
+    
+    Amin = min(abs(A1),abs(A2))
+    Amax = max(abs(A1),abs(A2)) 
+
+    IF (sign(A1,1)==-1)  then
+       pre = pre*(-1) ** ((ja-jb+JT)/2) 
+    end if
+    IF (sign(A2,1)==-1)  then
+       pre = pre*(-1) ** ((jc-jd+JT)/2) 
+    end if
+
+    
+    me = z2(q)%X(bosonic_Tp_index(Amin,Amax,Ntot))*pre
+
+    get_Jme2b = me
+  end function get_Jme2b
+
+  
+    
+  real(8) function get_me2b(ay,by,cy,dy,z2,tp_Basis)
+    !! V_{abcd} m-scheme   (m-scheme indices)
+    implicit none
+
+    type(block_mat),dimension(:) :: z2
+    type(tpd) :: tp_basis
+    integer :: JT,j_min,j_start,j_end
+    integer :: a,b,c,d,ja,jb,jc,jd,MT,q
+    integer :: ax,bx,cx,dx,ay,by,cy,dy
+    integer :: ma,mb,mc,md ,A1,A2,BB,Ntot,Amin,Amax,pre
+    real(8) :: me,dcgi
+
+    ax = mbas%jlab(ay)
+    bx = mbas%jlab(by)
+    cx = mbas%jlab(cy)
+    dx = mbas%jlab(dy)
+
+    pre = 1
+    a = ay
+    b = by 
+    if (ax > bx ) then
+       a = by
+       b = ay
+       pre = pre*(-1)
+    end if
+
+    c = cy
+    d = dy 
+    if (cx > dx ) then
+       c = dy
+       d = cy
+       pre = pre*(-1)
+    end if
+
     
     ja = mbas%jj(a)
     jb = mbas%jj(b)
@@ -345,12 +513,6 @@ contains
 
     me = 0.d0
 
-    ax = mbas%jlab(a)
-    bx = mbas%jlab(b)
-    cx = mbas%jlab(c)
-    dx = mbas%jlab(d)
-
-    print*, ax,bx,cx,dx
     do JT = j_start,j_end,2
        q = get_tp_block_index(ax,bx,JT)
        if (q==0) cycle
@@ -360,18 +522,17 @@ contains
 
        Amin = min(abs(A1),abs(A2))
        Amax = max(abs(A1),abs(A2)) 
-       pre = sign(1,A1)*sign(1,A2)
+       pre = pre* sign(1,A1)*sign(1,A2)
 
        
-       me = me + ME2B(q)%X(bosonic_Tp_index(Amin,Amax,Ntot)) &
+       me = me + z2(q)%X(bosonic_Tp_index(Amin,Amax,Ntot)) &
             *dcgi(ja,ma,jb,mb,JT,MT)*dcgi(jc,mc,jd,md,JT,MT)*pre
-       print*, JT, ME2B(q)%X(bosonic_Tp_index(Amin,Amax,Ntot)),q
     end do
 
     get_me2b = me
   end function get_me2b
     
 
-    
-    
+
+  
  end module

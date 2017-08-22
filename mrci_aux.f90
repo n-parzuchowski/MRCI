@@ -81,15 +81,18 @@ contains
   end subroutine read_input_file
 !!!===========================================================
 !!!===========================================================
-  subroutine read_ref_file(reffile,num_refs,REF,AA)
+  subroutine read_ref_file(reffile,num_refs,REF,AA,denfile)
     implicit none
 
-    character(200) :: reffile
+    character(200) :: reffile,denfile
     integer :: ist,num_refs,AA,ii
     integer,allocatable,dimension(:,:) :: ref
 
     reffile = adjustl(reffile)
     open(unit=45,file=trim(INI_DIR)//trim(reffile)) 
+
+    read(45,*) !! Enter number of refs
+    read(45,*) denfile
 
     read(45,*) !! Enter number of refs
     read(45,*) num_refs
