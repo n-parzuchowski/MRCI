@@ -45,5 +45,19 @@ program mrci_main
   print*, x
 
   print*, ME0B
+
+  call unnormal_order(me0b,me1b,me2b,tp_basis)
+
+  print*, ME2B(1)%X(1:12)
+
+  print*, get_ME1B(24,88,ME1B)
+ 
+  x=get_ME2B(1,2,1,2,ME2B,tp_Basis) 
+  print*, x
+  x=get_JME2B(1,1,1,1,0,ME2B,tp_Basis) 
+  print*, x
+
+  print*, ME0B
+  
 end program mrci_main
   

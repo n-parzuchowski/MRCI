@@ -132,6 +132,7 @@ contains
     do q = 1, tp_basis%bMax
        a = tp_basis%block(q)%aMax
        allocate(z2(q)%X(a*(a+1)/2))
+       z2(q)%X = 0.d0
        totme = totme + a*(a+1)/2 
     end do
 
@@ -400,6 +401,16 @@ contains
        pre = pre*(-1)**((jc-jd+JT)/2) 
     end if
 
+    if ((a==b).and.(mod(JT/2,2)==1)) then
+       get_Jme2b = 0.d0
+       return
+    end if
+
+    if ((c==d).and.(mod(JT/2,2)==1)) then
+       get_Jme2b = 0.d0
+       return
+    end if
+
     ja = jbas%jj(a)
     jb = jbas%jj(b)
     jc = jbas%jj(c)
@@ -428,17 +439,9 @@ contains
     A1 = TP_index(a,b,JT)       
     A2 = TP_index(c,d,JT)
     
-    Amin = min(abs(A1),abs(A2))
-    Amax = max(abs(A1),abs(A2)) 
+    Amin = min(A1,A2)
+    Amax = max(A1,A2) 
 
-    IF (sign(A1,1)==-1)  then
-       pre = pre*(-1) ** ((ja-jb+JT)/2) 
-    end if
-    IF (sign(A2,1)==-1)  then
-       pre = pre*(-1) ** ((jc-jd+JT)/2) 
-    end if
-
-    
     me = z2(q)%X(bosonic_Tp_index(Amin,Amax,Ntot))*pre
 
     get_Jme2b = me
@@ -513,6 +516,11 @@ contains
 
     me = 0.d0
 
+    ax = mbas%jlab(a)
+    bx = mbas%jlab(b)
+    cx = mbas%jlab(c)
+    dx = mbas%jlab(d)
+
     do JT = j_start,j_end,2
        q = get_tp_block_index(ax,bx,JT)
        if (q==0) cycle
@@ -520,9 +528,10 @@ contains
        A1 = TP_index(ax,bx,JT)       
        A2 = TP_index(cx,dx,JT)
 
-       Amin = min(abs(A1),abs(A2))
-       Amax = max(abs(A1),abs(A2)) 
-       pre = pre* sign(1,A1)*sign(1,A2)
+       if (A1 == 0) cycle
+       if (A2 == 0) cycle 
+       Amin = min(A1,A2)
+       Amax = max(A1,A2) 
 
        
        me = me + z2(q)%X(bosonic_Tp_index(Amin,Amax,Ntot)) &
@@ -532,7 +541,170 @@ contains
     get_me2b = me
   end function get_me2b
     
+  subroutine unnormal_order(z0,z1,z2,tp_basis) 
+    implicit none
+
+    real(8) :: z0
+    type(tpd) :: tp_basis
+    type(block_mat_full),dimension(:,:) :: z1
+    type(block_mat),dimension(:) :: z2
+    integer :: t,lj,nMax,ljMax,n1,n2,a,b,i,j,ji
+    integer :: J_min,J_max,JT,jj,ja,jb,A1,A2,q
+    real(8) :: sm,dir,ex,pre,pre1,pre2
+
+    
+    ljMax = size(jbas%tlj_to_ab(1,:))
+
+!!! zero body peice
+
+    ! do i = 1, jbas%Ntot
+    !    ji = jbas%jj(i)
+    !    do j = 1, jbas%Ntot           
+    !       z0 = z0 - (ji+1.d0) * get_jme1b(i,j,z1) * get_jme1b(j,i,lambda1b)
+
+    !       ! if  ( abs( (ji+1.d0) * get_jme1b(i,j,z1) * get_jme1b(j,i,lambda1b) ) > 1e-6) then
+    !       !    print*, i,j,(ji+1.d0) , get_jme1b(i,j,z1) , get_jme1b(j,i,lambda1b) 
+    !       ! end if
+       
+    !    end do
+    ! end do
+
+    ! do i = 1, jbas%Ntot
+    !    ji = jbas%jj(i)
+    !    do j = 1,jbas%Ntot
+    !       jj = jbas%jj(j)
+
+    !       do a = 1, jbas%Ntot
+    !          ja = jbas%jj(a)
+    !          do b = 1, jbas%Ntot
+    !             jb = jbas%jj(b)
+                
 
 
-  
+    !             J_min = max(abs(ji-jj),abs(ja-jb))
+    !             J_max = min(ji+jj,ja+jb)
+
+
+    !             dir = get_Jme1b(i,a,lambda1b) * get_Jme1b(j,b,lambda1b) 
+    !             ex =  get_Jme1b(i,b,lambda1b) * get_Jme1b(j,a,lambda1b)
+
+                
+    !             do JT = J_min,J_max,2
+    !                z0 = z0 + (JT+1.d0) * get_Jme2b(i,j,a,b,JT,z2,tp_Basis) * &
+    !                     ( dir  - (get_Jme2b(i,j,a,b,JT,lambda2b,tp_basis) + dir &
+    !                     - (-1)**((ji+jj+JT)/2)*ex)*0.25d0)
+
+    !                if (abs((JT+1.d0) * get_Jme2b(i,j,a,b,JT,z2,tp_Basis) * &
+    !                     ( dir  - (get_Jme2b(i,j,a,b,JT,lambda2b,tp_basis) + dir &
+    !                     - (-1)**((ji+jj+JT)/2)*ex)*0.25d0))> 1e-6) then
+
+    !                   if ( i > j ) then
+    !                      cycle
+    !                   else                        
+    !                      q = get_tp_block_index(i,j,JT)
+    !                      a1 = TP_index(i,j,JT)
+    !                   end if
+                      
+
+    !                   if ( a > b ) then
+    !                      cycle
+    !                   else                        
+    !                      if (q .ne.  get_tp_block_index(a,b,JT)) print*, 'FUCK'
+    !                      a2 = TP_index(a,b,JT)
+    !                   end if
+
+                      
+    !                   print*, i,j,a,b,JT, get_Jme2b(i,j,a,b,JT,z2,tp_Basis),q-1,a1-sign(1,a1),a2-sign(1,a2)
+
+                         
+                         
+                      
+                      
+    !                end if
+
+                   
+                   
+                   
+    !             end do
+
+                
+    !          end do
+    !       end do
+    !    end do
+    ! end do
+
+
+    
+    do i = 1, mbas%Ntot
+       do j = 1, mbas%Ntot           
+          z0 = z0 -  get_me1b(i,j,me1b) * get_me1b(j,i,lambda1b)       
+       end do
+    end do
+
+
+    do i = 1, mbas%Ntot
+       do j = 1,mbas%Ntot
+          do a = 1, mbas%Ntot
+             do b = 1, mbas%Ntot
+                
+
+
+                dir = get_me1b(i,a,lambda1b) * get_me1b(j,b,lambda1b) 
+                ex =  get_me1b(i,b,lambda1b) * get_me1b(j,a,lambda1b)
+
+                
+                z0 = z0 - 0.25* get_me2b(i,j,a,b,me2b,tp_Basis)* (get_me2b(i,j,a,b,lambda2b,tp_Basis)  + dir - ex) 
+                z0 = z0 +  get_me2b(i,j,a,b,me2b,tp_Basis)*dir 
+
+                
+             end do
+          end do
+       end do
+    end do
+
+    
+    
+!!! one body piece
+    do t = 1,2
+       do lj=1, ljMax
+
+          ! all of these n qnums start at 1 because fortran, when
+          ! they actually start at zero. 
+          nMax = size(jbas%tlj_to_ab(t,lj)%Z)
+
+          do n1 = 1, nMax
+             a = jbas%tlj_to_ab(t,lj)%Z(n1)
+             ja = jbas%jj(a) 
+             do n2 = 1,nMax
+                b = jbas%tlj_to_ab(t,lj)%Z(n2)
+                jb = jbas%jj(b) 
+
+                sm = 0.d0 
+                do i = 1, jbas%Ntot
+                   ji = jbas%jj(i) 
+                   do j = 1, jbas%Ntot
+                      jj = jbas%jj(j) 
+
+                      J_min = max(abs(ji-ja),abs(jj-jb))
+                      J_max = min(ji+ja,jj+jb)
+
+                      do JT = J_min,J_max,2
+                         sm = sm + (JT+1.d0)/(ja+1.d0)* &
+                              get_Jme2b(i,a,j,b,JT,z2,tp_basis)
+                      end do
+
+                      z1(t,lj)%XX(n1,n2) = z1(t,lj)%XX(n1,n2) &
+                           - sm * get_jme1b(i,j,lambda1b)
+                                        
+                   end do
+                end do
+
+             end do
+          end do
+       end do
+    end do
+
+
+  end subroutine unnormal_order
+    
  end module

@@ -234,7 +234,7 @@ contains
 
     integer :: Ntot,Lmax,eMax,lj,twol,twoj,j_min,j_max,numJ
     integer :: ljMax,q,idx,idxx,i,j,a,Tz,Pi,JT,x
-    integer :: n1,j1,l1,t1,n2,j2,l2,t2,lj1,lj2
+    integer :: n1,j1,l1,t1,n2,j2,l2,t2,lj1,lj2,n
     integer,allocatable,dimension(:,:) :: SPBljs
     integer,allocatable,dimension(:) :: nMax_lj
     integer,dimension(500) :: a_list
@@ -257,6 +257,8 @@ contains
     ljMax = lj 
     allocate(SPBljs(lj,2)) 
     allocate(nMax_lj(lj))
+
+    allocate(jbas%tlj_to_ab(2,ljmax))
     
     lj = 0
     do twol = 0, 2 * Lmax , 2
@@ -265,9 +267,40 @@ contains
           SPBljs(lj,1) = twol
           sPBljs(lj,2) = twoj
           nMax_lj(lj) = (eMax - twol/2)/2
+
+          allocate(jbas%tlj_to_ab(1,lj)%Z(nMax_lj(lj)+1)) 
+          allocate(jbas%tlj_to_ab(2,lj)%Z(nMax_lj(lj)+1))          
+
+          do n = 0 , nMax_lj(lj)
+
+             ! now search for sp labels
+             do i = 1, jbas%Ntot  !!! proton 
+                if ( jbas%jj(i) .ne. twoj ) cycle
+                if ( jbas%nn(i) .ne. n ) cycle
+                if ( 2*jbas%ll(i) .ne. twol ) cycle
+                if ( jbas%tz(i) .ne. -1 ) cycle                     
+                ! i is the jlabel for this state
+                jbas%tlj_to_ab(2,lj)%Z(n+1) = i 
+                exit
+             end do
+             
+             do i = 1, jbas%Ntot  !!! proton 
+                if ( jbas%jj(i) .ne. twoj ) cycle
+                if ( jbas%nn(i) .ne. n ) cycle
+                if ( 2*jbas%ll(i) .ne. twol ) cycle
+                if ( jbas%tz(i) .ne. 1 ) cycle                     
+                ! i is the jlabel for this state
+                jbas%tlj_to_ab(1,lj)%Z(n+1) = i 
+                exit
+             end do             
+             
+          end do
+
+          
        end do
     end do
 
+    
     allocate(jbas%amap(Ntot*(Ntot+1)/2))
     allocate(jbas%qmap(Ntot*(Ntot+1)/2)) 
     ! v_elem to find matrix elements
@@ -416,7 +449,8 @@ contains
                          if (j < i ) then
                             x = bosonic_tp_index(j,i,Ntot) 
                             j_min = jbas%amap(x)%Z(1)
-                            jbas%amap(x)%Z((JT-j_min)/2+2) = -1*a !multiply a by -1 if we permuted indices. 
+                            jbas%amap(x)%Z((JT-j_min)/2+2) = a
+                            !!! figure out how this fucking basis is working.
                          else
                             x = bosonic_tp_index(i,j,Ntot) 
                             j_min = jbas%amap(x)%Z(1)
@@ -452,8 +486,8 @@ contains
 
     integer :: i,j,JT,j_min,Ntot,x
 
-    Ntot = jbas%Ntot
-    x = bosonic_tp_index(i,j,Ntot) 
+    Ntot = jbas%Ntot    
+    x = bosonic_tp_index(i,j,Ntot)     
     j_min = jbas%amap(x)%Z(1) 
     
     get_tp_block_index=jbas%qmap(x)%Z((JT-j_min)/2+2) 
@@ -467,7 +501,8 @@ contains
     
     Ntot = jbas%Ntot
     x = bosonic_tp_index(i,j,Ntot) 
-    j_min = jbas%amap(x)%Z(1) 
+    j_min = jbas%amap(x)%Z(1)
+
     TP_index= jbas%amap(x)%Z((JT-j_min)/2+2) 
   
   end function TP_index

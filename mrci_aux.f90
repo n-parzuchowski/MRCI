@@ -19,6 +19,7 @@ TYPE :: spd    ! single particle discriptor
    real(8) :: e
    integer, allocatable, dimension(:) :: nn, ll, jj, mm,tz,jlab
    type(int_vec),allocatable,dimension(:) :: amap,qmap
+   type(int_vec),allocatable,dimension(:,:) :: tlj_to_ab 
    ! for clarity:  nn, ll, nshell are all the true value
    ! jj is j+1/2 (so it's an integer) 
    ! likewise itzp is 2*tz
