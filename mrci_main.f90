@@ -34,29 +34,20 @@ program mrci_main
   do ii = 1, mbas%ntot
      print*,  ii, mbas%nn(ii),mbas%ll(ii),mbas%jj(ii),mbas%mm(ii),mbas%tz(ii)
   end do
-  
-  print*, ME2B(1)%X(1:12)
 
-  print*, get_ME1B(24,88,ME1B)
- 
-  x=get_ME2B(1,2,1,2,ME2B,tp_Basis) 
-  print*, x
-  x=get_JME2B(1,1,1,1,0,ME2B,tp_Basis) 
-  print*, x
+  do ii = 1, jbas%ntot
+     print*,  ii, jbas%nn(ii),jbas%ll(ii),jbas%jj(ii),jbas%tz(ii)
+  end do
+
+
+  print*, get_JME1B(1,1,ME1B),get_JME1B(1,7,ME1B),get_JME1B(7,1,ME1B),get_JME1B(7,7,ME1B)
 
   print*, ME0B
 
   call unnormal_order(me0b,me1b,me2b,tp_basis)
 
-  print*, ME2B(1)%X(1:12)
-
-  print*, get_ME1B(24,88,ME1B)
- 
-  x=get_ME2B(1,2,1,2,ME2B,tp_Basis) 
-  print*, x
-  x=get_JME2B(1,1,1,1,0,ME2B,tp_Basis) 
-  print*, x
-
+    print*, get_JME1B(1,1,ME1B),get_JME1B(1,7,ME1B),get_JME1B(7,1,ME1B),get_JME1B(7,7,ME1B)
+  
   print*, ME0B
   
 end program mrci_main

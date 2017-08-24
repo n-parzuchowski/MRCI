@@ -113,7 +113,7 @@ contains
 
     type(block_mat),allocatable,dimension(:) :: z2
     type(tpd) :: tp_basis
-    integer :: q,a,totme,buflen,ist,bMax,b,endpos
+    integer :: q,a,totme,buflen,ist,bMax,b,endpos,i,j
     integer :: a1,a2,a1len,a2len,aa,menpos,lenme,ii
     real(8) :: mem,me
     character(200) :: intfile
@@ -273,9 +273,26 @@ contains
                  do_read = .false. 
                 cycle
              end if
+
              
              read(buffer(menpos:endpos) ,'(f'//trim(fme)//'.8)') me
 
+             i = tp_Basis%block(q)%qnums(a1,1)
+             j = tp_Basis%block(q)%qnums(a1,2) 
+
+             if (i > j ) then
+                ! we actually store the opposite orientation
+                me = me * (-1)**(( jbas%jj(i) - jbas%jj(j) +   tp_basis%block(q)%J)/2) 
+             end if
+             
+             i = tp_Basis%block(q)%qnums(a2,1)
+             j = tp_Basis%block(q)%qnums(a2,2) 
+             
+             if (i > j ) then
+                ! we actually store the opposite orientation
+                me = me * (-1)**(( jbas%jj(i) - jbas%jj(j) +   tp_basis%block(q)%J)/2) 
+             end if
+             
              z2(q)%X(ii) = me
              ii = ii +1
              
@@ -550,117 +567,85 @@ contains
     type(block_mat),dimension(:) :: z2
     integer :: t,lj,nMax,ljMax,n1,n2,a,b,i,j,ji
     integer :: J_min,J_max,JT,jj,ja,jb,A1,A2,q
-    real(8) :: sm,dir,ex,pre,pre1,pre2
+    real(8) :: sm,dir,ex,pre,pre1,pre2,kkk
 
     
     ljMax = size(jbas%tlj_to_ab(1,:))
 
 !!! zero body peice
 
-    ! do i = 1, jbas%Ntot
-    !    ji = jbas%jj(i)
-    !    do j = 1, jbas%Ntot           
-    !       z0 = z0 - (ji+1.d0) * get_jme1b(i,j,z1) * get_jme1b(j,i,lambda1b)
-
-    !       ! if  ( abs( (ji+1.d0) * get_jme1b(i,j,z1) * get_jme1b(j,i,lambda1b) ) > 1e-6) then
-    !       !    print*, i,j,(ji+1.d0) , get_jme1b(i,j,z1) , get_jme1b(j,i,lambda1b) 
-    !       ! end if
-       
-    !    end do
-    ! end do
-
-    ! do i = 1, jbas%Ntot
-    !    ji = jbas%jj(i)
-    !    do j = 1,jbas%Ntot
-    !       jj = jbas%jj(j)
-
-    !       do a = 1, jbas%Ntot
-    !          ja = jbas%jj(a)
-    !          do b = 1, jbas%Ntot
-    !             jb = jbas%jj(b)
-                
-
-
-    !             J_min = max(abs(ji-jj),abs(ja-jb))
-    !             J_max = min(ji+jj,ja+jb)
-
-
-    !             dir = get_Jme1b(i,a,lambda1b) * get_Jme1b(j,b,lambda1b) 
-    !             ex =  get_Jme1b(i,b,lambda1b) * get_Jme1b(j,a,lambda1b)
-
-                
-    !             do JT = J_min,J_max,2
-    !                z0 = z0 + (JT+1.d0) * get_Jme2b(i,j,a,b,JT,z2,tp_Basis) * &
-    !                     ( dir  - (get_Jme2b(i,j,a,b,JT,lambda2b,tp_basis) + dir &
-    !                     - (-1)**((ji+jj+JT)/2)*ex)*0.25d0)
-
-    !                if (abs((JT+1.d0) * get_Jme2b(i,j,a,b,JT,z2,tp_Basis) * &
-    !                     ( dir  - (get_Jme2b(i,j,a,b,JT,lambda2b,tp_basis) + dir &
-    !                     - (-1)**((ji+jj+JT)/2)*ex)*0.25d0))> 1e-6) then
-
-    !                   if ( i > j ) then
-    !                      cycle
-    !                   else                        
-    !                      q = get_tp_block_index(i,j,JT)
-    !                      a1 = TP_index(i,j,JT)
-    !                   end if
-                      
-
-    !                   if ( a > b ) then
-    !                      cycle
-    !                   else                        
-    !                      if (q .ne.  get_tp_block_index(a,b,JT)) print*, 'FUCK'
-    !                      a2 = TP_index(a,b,JT)
-    !                   end if
-
-                      
-    !                   print*, i,j,a,b,JT, get_Jme2b(i,j,a,b,JT,z2,tp_Basis),q-1,a1-sign(1,a1),a2-sign(1,a2)
-
-                         
-                         
-                      
-                      
-    !                end if
-
-                   
-                   
-                   
-    !             end do
-
-                
-    !          end do
-    !       end do
-    !    end do
-    ! end do
-
-
-    
-    do i = 1, mbas%Ntot
-       do j = 1, mbas%Ntot           
-          z0 = z0 -  get_me1b(i,j,me1b) * get_me1b(j,i,lambda1b)       
+    kkk = 0.d0 
+    do i = 1, jbas%Ntot
+       ji = jbas%jj(i)
+       do j = 1, jbas%Ntot           
+          z0 = z0 - (ji+1.d0) * get_jme1b(i,j,z1) * get_jme1b(j,i,lambda1b)           
        end do
     end do
 
+    do i = 1, jbas%Ntot
+       ji = jbas%jj(i)
+       do j = 1,jbas%Ntot
+          jj = jbas%jj(j)
 
-    do i = 1, mbas%Ntot
-       do j = 1,mbas%Ntot
-          do a = 1, mbas%Ntot
-             do b = 1, mbas%Ntot
+          do a = 1, jbas%Ntot
+             ja = jbas%jj(a)
+             do b = 1, jbas%Ntot
+                jb = jbas%jj(b)
                 
 
 
-                dir = get_me1b(i,a,lambda1b) * get_me1b(j,b,lambda1b) 
-                ex =  get_me1b(i,b,lambda1b) * get_me1b(j,a,lambda1b)
+                J_min = max(abs(ji-jj),abs(ja-jb))
+                J_max = min(ji+jj,ja+jb)
+
+
+                dir = get_Jme1b(i,a,lambda1b) * get_Jme1b(j,b,lambda1b) 
+                ex =  get_Jme1b(i,b,lambda1b) * get_Jme1b(j,a,lambda1b)
 
                 
-                z0 = z0 - 0.25* get_me2b(i,j,a,b,me2b,tp_Basis)* (get_me2b(i,j,a,b,lambda2b,tp_Basis)  + dir - ex) 
-                z0 = z0 +  get_me2b(i,j,a,b,me2b,tp_Basis)*dir 
+                do JT = J_min,J_max,2
+                   z0 = z0 + (JT+1.d0) * get_Jme2b(i,j,a,b,JT,z2,tp_Basis) * &
+                        ( dir  - (get_Jme2b(i,j,a,b,JT,lambda2b,tp_basis) + dir &
+                        - (-1)**((ji+jj+JT)/2)*ex)*0.25d0)
+
+                   kkk = kkk + (JT+1.d0) * get_Jme2b(i,j,a,b,JT,z2,tp_Basis) *dir
+                   
+                   
+                end do
 
                 
              end do
           end do
        end do
     end do
+
+
+    
+    ! do i = 1, mbas%Ntot
+    !    do j = 1, mbas%Ntot           
+    !       z0 = z0 -  get_me1b(i,j,me1b) * get_me1b(j,i,lambda1b)       
+    !    end do
+    ! end do
+
+
+    ! do i = 1, mbas%Ntot
+    !    do j = 1,mbas%Ntot
+    !       do a = 1, mbas%Ntot
+    !          do b = 1, mbas%Ntot
+                
+
+
+    !             dir = get_me1b(i,a,lambda1b) * get_me1b(j,b,lambda1b) 
+    !             ex =  get_me1b(i,b,lambda1b) * get_me1b(j,a,lambda1b)
+
+                
+    !             z0 = z0 - 0.25* get_me2b(i,j,a,b,me2b,tp_Basis)* (get_me2b(i,j,a,b,lambda2b,tp_Basis)  + dir - ex) 
+    !             z0 = z0 +  get_me2b(i,j,a,b,me2b,tp_Basis)*dir 
+
+                
+    !          end do
+    !       end do
+    !    end do
+    ! end do
 
     
     
@@ -689,13 +674,9 @@ contains
                       J_max = min(ji+ja,jj+jb)
 
                       do JT = J_min,J_max,2
-                         sm = sm + (JT+1.d0)/(ja+1.d0)* &
-                              get_Jme2b(i,a,j,b,JT,z2,tp_basis)
+                         z1(t,lj)%XX(n1,n2) = z1(t,lj)%XX(n1,n2)  - (JT+1.d0)/(ja+1.d0)* &
+                              get_Jme2b(i,a,j,b,JT,z2,tp_basis) *get_jme1b(i,j,lambda1b)                   
                       end do
-
-                      z1(t,lj)%XX(n1,n2) = z1(t,lj)%XX(n1,n2) &
-                           - sm * get_jme1b(i,j,lambda1b)
-                                        
                    end do
                 end do
 

@@ -80,7 +80,8 @@ contains
     jbas%jmax = maxval(jbas%jj)
     jbas%lmax = maxval(jbas%ll)
     jbas%nmax = maxval(jbas%nn)
-    
+
+    print*, mbas%Ntot
     close(77)
   end subroutine init_sp_basis
 !!!===========================================================
