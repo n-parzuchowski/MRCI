@@ -3,6 +3,8 @@ module mrci_basis
   implicit none
 !!!===========================================================
 !!!===========================================================
+
+  
 contains
 !!!===========================================================
 !!!===========================================================
@@ -80,8 +82,9 @@ contains
     jbas%jmax = maxval(jbas%jj)
     jbas%lmax = maxval(jbas%ll)
     jbas%nmax = maxval(jbas%nn)
-
-    print*, mbas%Ntot
+    jbas%Abody = mbas%Abody
+    jbas%Aneut = mbas%Aneut
+    jbas%Aprot = mbas%Aprot
     close(77)
   end subroutine init_sp_basis
 !!!===========================================================
@@ -127,25 +130,23 @@ contains
           
           do kx = 1, mbas%Ntot
 
-             !! first check if this state has the right  
+             !! first check if this state has the right symmetry 
              if (mbas%mm(kx) .ne. mout) cycle
              if (mod(mbas%ll(kx)+lout,2).ne.0) cycle
              if (mbas%tz(kx) .ne. tout) cycle
 
 
-             !! IF we've made it here, this state is a candidate for a 1p1h excitation.
-             !! Now we see if it's in the current SD
+             !! IF we've made it here, the (kx,-jx) state is a candidate for a 1p1h excitation.
+             !! make sure kx isn't already in the current reference
              nin = mbas%nn(kx)
              jin = mbas%jj(kx)
 
              
              present = .false. 
              do lx = 1, Abody
-                if (mbas%mm(lx) .ne. mout) cycle
-                if (mbas%ll(lx).ne. lout) cycle
-                if (mbas%tz(lx) .ne. tout) cycle
-                if (mbas%jj(lx).ne. jin) cycle
-                if (mbas%nn(lx) .ne. nin) cycle
+       
+                if (ref(ix,lx) .ne. kx) cycle
+
                 !if we're here, this means that this state is already in the SD
                 present = .true.
                 exit
@@ -156,6 +157,7 @@ contains
              !! if we're here, that means we've found a particle state that isn't in the current SD                                                                  
              newSD = REF(ix,:)
              newSD(jx) = kx
+
 
              call sort_SD(newSD) 
              
@@ -171,10 +173,12 @@ contains
                 end if
              end do
 
+    
+             
              if (present) cycle
 
              !! if we've made it here, we have a shiny new slater determinant
-
+             
              SD_Basis(q,: )= newSD
              q = q +1
              
@@ -202,7 +206,6 @@ contains
        end if
     end do
 
-    
   end subroutine generate_basis
 !!!===========================================================
 !!!===========================================================
@@ -230,7 +233,7 @@ contains
   end subroutine sort_SD  
 !!!===========================================================
 !!!===========================================================                  
-  subroutine generate_tp_basis(tp_basis) 
+  subroutine generate_tp_basis 
     implicit none
 
     integer :: Ntot,Lmax,eMax,lj,twol,twoj,j_min,j_max,numJ
@@ -239,7 +242,7 @@ contains
     integer,allocatable,dimension(:,:) :: SPBljs
     integer,allocatable,dimension(:) :: nMax_lj
     integer,dimension(500) :: a_list
-    type(tpd) :: tp_basis 
+
 
 
     a_list = 0

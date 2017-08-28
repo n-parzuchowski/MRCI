@@ -32,17 +32,18 @@ contains
     character(20) :: mes,memstr
     character(3) :: units
     character(10) :: fm,fma2,fma1,fme
-    type(c_ptr) :: buf
-    integer(c_int) :: hndle,sz
-    character(kind=C_CHAR,len=200) :: buffer
+!    type(c_ptr) :: buf
+ !   integer(c_int) :: hndle,sz
+  !  character(kind=C_CHAR,len=200) :: buffer
        
-    me1bfile = intfile(1:len(trim(intfile))-5)//'1b.gz'
+    ! me1bfile = intfile(1:len(trim(intfile))-5)//'1b.gz'
+    me1bfile = intfile(1:len(trim(intfile))-5)//'1b'
     
-    hndle=gzOpen(trim(ME_DIR)//trim(adjustl(me1bfile))//achar(0),"r"//achar(0))
-
+   ! hndle=gzOpen(trim(ME_DIR)//trim(adjustl(me1bfile))//achar(0),"r"//achar(0))
+    open(unit=45,file= trim(ME_DIR)//trim(adjustl(me1bfile)) ) 
     Lmax = mbas%lmax
     eMax = 2*mbas%nmax
-    sz = 200
+ !   sz = 200
 
     allocate(z1(2,2*Lmax+1))
     
@@ -60,59 +61,65 @@ contains
 
 
     ! read verion line, and then some integer
-    buf=gzGets(hndle,buffer,sz) 
+!    buf=gzGets(hndle,buffer,sz) 
+    read(45,*) 
     ! the integer probably has to do with the file size
-    buf=gzGets(hndle,buffer,sz) 
-
+!    buf=gzGets(hndle,buffer,sz) 
+    read(45,*) bMax
       
-    read(buffer(1:4),'(I4)',iostat=ist) bMax 
-    if (ist .ne. 0 ) then 
-       read(buffer(1:3),'(I3)',iostat=ist) bMax 
-       if (ist .ne. 0 ) then 
-          read(buffer(1:2),'(I2)',iostat=ist) bMax
-          if (ist .ne. 0 ) then 
-             read(buffer(1:1),'(I1)',iostat=ist) bMax
-          end if
-       end if
-    end if
+    ! read(buffer(1:4),'(I4)',iostat=ist) bMax 
+    ! if (ist .ne. 0 ) then 
+    !    read(buffer(1:3),'(I3)',iostat=ist) bMax 
+    !    if (ist .ne. 0 ) then 
+    !       read(buffer(1:2),'(I2)',iostat=ist) bMax
+    !       if (ist .ne. 0 ) then 
+    !          read(buffer(1:1),'(I1)',iostat=ist) bMax
+    !       end if
+    !    end if
+    ! end if
     
     ! me0b 
-    buf=gzGets(hndle,buffer,sz) 
-
-    read(buffer(1:7),'(f7.1)')  me
+!    buf=gzGets(hndle,buffer,sz) 
+    read(45,*) z0 
+    
+    ! read(buffer(1:7),'(f7.1)')  me
         
-    if (buffer(1:1)=='-') then
-       lenme = 1+digets(floor(abs(me)))+7
-    else
-       lenme = digets(floor(abs(me)))+7
-    end if
+    ! if (buffer(1:1)=='-') then
+    !    lenme = 1+digets(floor(abs(me)))+7
+    ! else
+    !    lenme = digets(floor(abs(me)))+7
+    ! end if
 
-    mes = fmtlen(lenme)
+    ! mes = fmtlen(lenme)
 
-    read(buffer(1:lenme),'(f'//trim(mes)//'.6)')  z0 
+    ! read(buffer(1:lenme),'(f'//trim(mes)//'.6)')  z0 
 
     !! the rest of the file is "t lj  a  aa  me"
+    print*, bMax
     do   ii = 1, bMax 
+
+       read(45,*) t,lj,a1,a2,me
        
-       buf=gzGets(hndle,buffer,sz)
+!       buf=gzGets(hndle,buffer,sz)
+       z1(t+1,lj+1)%XX(a1+1,a2+1)  = me
        
-       read(buffer(1:2),'(I2)') t
-       read(buffer(3:5),'(I3)') lj
-       read(buffer(6:9),'(I4)') a1
-       read(buffer(10:12),'(I3)') a2
-       read(buffer(13:24),'(f11.6)') z1(t+1,lj+1)%XX(a1+1,a2+1) 
+       ! read(buffer(1:2),'(I2)') t
+       ! read(buffer(3:5),'(I3)') lj
+       ! read(buffer(6:9),'(I4)') a1
+       ! read(buffer(10:12),'(I3)') a2
+       ! read(buffer(13:24),'(f11.6)') z1(t+1,lj+1)%XX(a1+1,a2+1) 
        
     end do
-    
-    sz=gzclose(hndle)
+
+    close(45) 
+!    sz=gzclose(hndle)
   end subroutine read_me1b
     
    
-  subroutine read_me2b(z2,intfile,tp_basis)
+  subroutine read_me2b(z2,intfile)
     implicit none
 
     type(block_mat),allocatable,dimension(:) :: z2
-    type(tpd) :: tp_basis
     integer :: q,a,totme,buflen,ist,bMax,b,endpos,i,j
     integer :: a1,a2,a1len,a2len,aa,menpos,lenme,ii
     real(8) :: mem,me
@@ -245,12 +252,13 @@ contains
                 endpos = menpos+8+lenme
              end if
 
-!             print*, q, a1, a2, buffer(1:10)
+             !             print*, q, a1, a2, buffer(1:10)
              read(buffer(1:2+a1len),'(I'//trim(fma1)//')',iostat=ist)  a
 
              if(ist .ne. 0) then
                 !! the correct index was not read
                 do_read = .false.
+                ii = ii + 1
                 cycle
              end if
              
@@ -260,23 +268,31 @@ contains
              if(ist .ne. 0) then
                 !! the correct index was not read
                 do_read = .false.
-                cycle
+                ii = ii +1 
+                cycle                
              end if
              
              
              if ((a+1) .ne. a1 ) then
                 do_read = .false. 
+                ii = ii + 1
                 cycle 
              end if
 
              if ((aa+1) .ne. a2 ) then
                  do_read = .false. 
-                cycle
+                 ii = ii + 1
+                 cycle
              end if
-
+             
+             !! here, we have presumably matched the q, a1 and a2 indices to
+             !! b, a and aa
              
              read(buffer(menpos:endpos) ,'(f'//trim(fme)//'.8)') me
 
+             ! print*, a1,a2, me, "Nathan"
+             ! print*, a,aa,"Heiko" 
+             ! print*
              i = tp_Basis%block(q)%qnums(a1,1)
              j = tp_Basis%block(q)%qnums(a1,2) 
 
@@ -383,12 +399,11 @@ contains
 
   end function get_Jme1b
 
-  real(8) function get_Jme2b(ay,by,cy,dy,JT,z2,tp_Basis)
+  real(8) function get_Jme2b(ay,by,cy,dy,JT,z2)
     !! UNNORMALIZED V^2_{ABCD}  jbas indices
     implicit none
 
     type(block_mat),dimension(:) :: z2
-    type(tpd) :: tp_basis
     integer :: JT,j_min,j_start,j_end
     integer :: a,b,c,d,ja,jb,jc,jd,MT,q
     integer :: ax,bx,cx,dx,ay,by,cy,dy
@@ -466,12 +481,11 @@ contains
 
   
     
-  real(8) function get_me2b(ay,by,cy,dy,z2,tp_Basis)
+  real(8) function get_me2b(ay,by,cy,dy,z2)
     !! V_{abcd} m-scheme   (m-scheme indices)
     implicit none
 
     type(block_mat),dimension(:) :: z2
-    type(tpd) :: tp_basis
     integer :: JT,j_min,j_start,j_end
     integer :: a,b,c,d,ja,jb,jc,jd,MT,q
     integer :: ax,bx,cx,dx,ay,by,cy,dy
@@ -558,23 +572,22 @@ contains
     get_me2b = me
   end function get_me2b
     
-  subroutine unnormal_order(z0,z1,z2,tp_basis) 
+  subroutine unnormal_order(z0,z1,z2)
     implicit none
 
     real(8) :: z0
-    type(tpd) :: tp_basis
     type(block_mat_full),dimension(:,:) :: z1
     type(block_mat),dimension(:) :: z2
     integer :: t,lj,nMax,ljMax,n1,n2,a,b,i,j,ji
     integer :: J_min,J_max,JT,jj,ja,jb,A1,A2,q
-    real(8) :: sm,dir,ex,pre,pre1,pre2,kkk
+    real(8) :: sm,dir,ex
 
-    
+    print*
+    print*, 'Unnormal ordering interaction' 
     ljMax = size(jbas%tlj_to_ab(1,:))
 
 !!! zero body peice
 
-    kkk = 0.d0 
     do i = 1, jbas%Ntot
        ji = jbas%jj(i)
        do j = 1, jbas%Ntot           
@@ -592,8 +605,6 @@ contains
              do b = 1, jbas%Ntot
                 jb = jbas%jj(b)
                 
-
-
                 J_min = max(abs(ji-jj),abs(ja-jb))
                 J_max = min(ji+jj,ja+jb)
 
@@ -603,13 +614,9 @@ contains
 
                 
                 do JT = J_min,J_max,2
-                   z0 = z0 + (JT+1.d0) * get_Jme2b(i,j,a,b,JT,z2,tp_Basis) * &
-                        ( dir  - (get_Jme2b(i,j,a,b,JT,lambda2b,tp_basis) + dir &
+                   z0 = z0 + (JT+1.d0) * get_Jme2b(i,j,a,b,JT,z2) * &
+                        ( dir  - (get_Jme2b(i,j,a,b,JT,lambda2b) + dir &
                         - (-1)**((ji+jj+JT)/2)*ex)*0.25d0)
-
-                   kkk = kkk + (JT+1.d0) * get_Jme2b(i,j,a,b,JT,z2,tp_Basis) *dir
-                   
-                   
                 end do
 
                 
@@ -617,36 +624,6 @@ contains
           end do
        end do
     end do
-
-
-    
-    ! do i = 1, mbas%Ntot
-    !    do j = 1, mbas%Ntot           
-    !       z0 = z0 -  get_me1b(i,j,me1b) * get_me1b(j,i,lambda1b)       
-    !    end do
-    ! end do
-
-
-    ! do i = 1, mbas%Ntot
-    !    do j = 1,mbas%Ntot
-    !       do a = 1, mbas%Ntot
-    !          do b = 1, mbas%Ntot
-                
-
-
-    !             dir = get_me1b(i,a,lambda1b) * get_me1b(j,b,lambda1b) 
-    !             ex =  get_me1b(i,b,lambda1b) * get_me1b(j,a,lambda1b)
-
-                
-    !             z0 = z0 - 0.25* get_me2b(i,j,a,b,me2b,tp_Basis)* (get_me2b(i,j,a,b,lambda2b,tp_Basis)  + dir - ex) 
-    !             z0 = z0 +  get_me2b(i,j,a,b,me2b,tp_Basis)*dir 
-
-                
-    !          end do
-    !       end do
-    !    end do
-    ! end do
-
     
     
 !!! one body piece
@@ -675,7 +652,7 @@ contains
 
                       do JT = J_min,J_max,2
                          z1(t,lj)%XX(n1,n2) = z1(t,lj)%XX(n1,n2)  - (JT+1.d0)/(ja+1.d0)* &
-                              get_Jme2b(i,a,j,b,JT,z2,tp_basis) *get_jme1b(i,j,lambda1b)                   
+                              get_Jme2b(i,a,j,b,JT,z2) *get_jme1b(i,j,lambda1b)                   
                       end do
                    end do
                 end do
@@ -687,5 +664,6 @@ contains
 
 
   end subroutine unnormal_order
+
     
  end module

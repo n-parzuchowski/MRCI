@@ -40,6 +40,7 @@ END type tpd
 !!!===========================================================
   
 type(spd),public :: jbas,mbas
+type(tpd),public :: tp_basis 
 character(500) :: ME_DIR,SP_DIR,INI_DIR,OUTPUT_DIR
      
 contains
