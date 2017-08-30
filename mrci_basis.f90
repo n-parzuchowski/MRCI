@@ -4,7 +4,6 @@ module mrci_basis
 !!!===========================================================
 !!!===========================================================
 
-  
 contains
 !!!===========================================================
 !!!===========================================================
@@ -102,14 +101,24 @@ contains
     integer,dimension(mbas%Abody) :: newSD 
     logical :: present
 
+    write(*,'(A)')  '===================================================='
+    write(*,'(A)')  'GENERATING SD BASIS'
+    write(*,*)
+
+    
     Abody = mbas%Abody
 
     num_Refs = size(REF(:,1)) 
     allocate(SD_BASIS(14000,Abody)) 
-
+    write(*,'(A)') "Allocated generic SD basis placeholder"
+    call print_memory(14000*Abody*4.d0)
+    tot_memory = tot_memory + 14000*Abody*4.d0
+    call print_total_memory
+    
+    
     do ix = 1, num_Refs
        call parity_M_and_T(REF(ix,:),mbas,PAR,M,BigT ) 
-       if( ( PAR .ne. 0 ) .or. (M .ne. 0) .or.&
+       if( ( PAR .ne. 0 ) .or. (M .ne. proj) .or.&
             (BigT .ne. (mbas%Aneut-mbas%Aprot)))  then
           print*, ix,BigT,mbas%Aneut-mbas%Aprot
           STOP "REFERENCES HAVE BAD QUANTUM NUMBERS."
@@ -190,17 +199,30 @@ contains
     !! pack 'er up
     q= q-1
     allocate(BASIS(q,Abody))
+    write(*,'(A)')  "Allocated unique SD basis descriptor"
+    call print_memory(q*Abody*4.d0)
+    tot_memory = tot_memory + q*Abody*4.d0
+    call print_total_memory
+
     BASIS = SD_BASIS(1:q,:)
 
     deallocate(SD_BASIS)
+    write(*,'(A)')  "Deallocated generic SD basis placeholder"
+    tot_memory = tot_memory - 14000*Abody*4.d0
+    call print_total_memory
 
-    PRINT*, 'SLATER DETERMINANT BASIS GENERATED'
-    PRINT*, q, 'BASIS VECTORS'
+    write(*,'(A)')  '===================================================='
+    write(*,'(A)')  'SLATER DETERMINANT BASIS GENERATED'
+    write(*,'(I5,A)')   q, ' BASIS VECTORS'
+
+    write(*,'(A)')  "In order to store a full matrix in this basis:"
+    call print_memory(q*q*8.d0)
+    
     
     !! check that nothing is wrong
     do ix = 1,q
        call parity_M_and_T(BASIS(ix,:),mbas,PAR,M,BigT ) 
-       if( ( PAR .ne. 0 ) .or. (M .ne. 0) .or. &
+       if( ( PAR .ne. 0 ) .or. (M .ne. proj) .or. &
             (BigT .ne. (mbas%Aneut-mbas%Aprot)))  then
           STOP "BASIS HAS BAD QUANTUM NUMBERS."
        end if

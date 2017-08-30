@@ -95,7 +95,6 @@ contains
     ! read(buffer(1:lenme),'(f'//trim(mes)//'.6)')  z0 
 
     !! the rest of the file is "t lj  a  aa  me"
-    print*, bMax
     do   ii = 1, bMax 
 
        read(45,*) t,lj,a1,a2,me
@@ -132,6 +131,10 @@ contains
     integer(c_int) :: hndle,sz
     character(kind=C_CHAR,len=200) :: buffer
   
+    write(*,*)
+    write(*,"(A)") "======================================="
+    write(*,"(A)") "READING OPERATOR FILE"    
+    write(*,*)
     
     allocate(z2(tp_basis%bMax))
 
@@ -145,8 +148,9 @@ contains
 
     write(mes,'(I20)') totme
     mes = adjustl(mes) 
-    write(*,*) "Allocated space for "//trim(mes)//" matrix elements." 
+    write(*,"(A)") "Allocated space for "//trim(mes)//" matrix elements." 
 
+    tot_memory = tot_memory +  totme*8.d0
     mem = totme*8.d0/1024.d0/1024.d0
     units = ' MB'
     if (mem > 1024.d0 ) then
@@ -154,13 +158,16 @@ contains
        units=' GB'
     end if
     write(memstr,'(f20.3)') mem       
-    memstr = adjustl(memstr) 
+    memstr = adjustl(memstr)
 
     
-    write(*,*) "Total Memory: "//trim(memstr)//units
+    
+    
+    write(*,"(A)") "Memory: "//trim(memstr)//units
+    call print_total_memory 
     write(*,*)
     intfile = adjustl(intfile)
-    write(*,*) "Reading interaction from "//trim(intfile)//"..."
+    write(*,"(A)") "Reading interaction from "//trim(intfile)//"..."
 
 
     hndle = gzOpen(trim(ME_DIR)//trim(intfile)//achar(0),"r"//achar(0))
@@ -190,7 +197,7 @@ contains
     do q = 1,bMax
 
        buf=gzGets(hndle,buffer,sz) 
-     !  print*, q,buffer(1:7),buffer(10:16)
+
        read(buffer(1:7),'(I7)')  b
        read(buffer(10:15),'(I6)')  a
 
@@ -252,7 +259,6 @@ contains
                 endpos = menpos+8+lenme
              end if
 
-             !             print*, q, a1, a2, buffer(1:10)
              read(buffer(1:2+a1len),'(I'//trim(fma1)//')',iostat=ist)  a
 
              if(ist .ne. 0) then
@@ -290,9 +296,7 @@ contains
              
              read(buffer(menpos:endpos) ,'(f'//trim(fme)//'.8)') me
 
-             ! print*, a1,a2, me, "Nathan"
-             ! print*, a,aa,"Heiko" 
-             ! print*
+
              i = tp_Basis%block(q)%qnums(a1,1)
              j = tp_Basis%block(q)%qnums(a1,2) 
 
@@ -582,8 +586,11 @@ contains
     integer :: J_min,J_max,JT,jj,ja,jb,A1,A2,q
     real(8) :: sm,dir,ex
 
+    print* 
+    write(*,"(A)") '=====================================' 
+    write(*,"(A)") 'UNNORMAL ORDERING INTERACTION'
     print*
-    print*, 'Unnormal ordering interaction' 
+    
     ljMax = size(jbas%tlj_to_ab(1,:))
 
 !!! zero body peice
@@ -662,7 +669,8 @@ contains
        end do
     end do
 
-
+    write(*,"(A)") "Unnormal ordering successful" 
+    write(*,"(A,f12.4)") "Unnormal-ordered offset: ",z0
   end subroutine unnormal_order
 
     

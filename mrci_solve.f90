@@ -13,28 +13,41 @@ contains
     type(block_mat),allocatable,dimension(:) :: z2
     integer,dimension(:,:) :: basis
     real(8) :: z0 
-    real(8),allocatable,dimension(:) :: workl,DX,QX,eigs,resid,work,workD
+    real(8),allocatable,dimension(:) :: workl,DX,QX,resid,work,workD
     real(8),allocatable,dimension(:,:) :: V,Z
     integer :: lwork,info,ido,ncv,ldv,iparam(11),ipntr(11),dm
     integer :: ishift,mxiter,nconv,mode,lworkl,ldz,nev,inc,ii,jj,aa
-    real(8) :: tol,sigma,sm,Egs
+    real(8) :: tol,sigma,sm,Egs,t1,t2,omp_get_wtime,amp1,amp2
     character(1) :: BMAT,HOWMNY 
     character(2) :: which
     logical :: rvec
     logical,allocatable,dimension(:) :: selct
 
+    print* 
+    write(*,"(A)") '=====================================' 
+    write(*,"(A)") 'SOLVING MRCI EIGENVALUE PROBLEM'
+    print*
+    
     dm = size(basis(:,1))
     allocate(HAM(dm,dm),JTOT_MAT(dm,dm))
     HAM=0.d0
 
-    tol= Jtot_Elem(1,1,basis)
-    print*, tol
-   ! stop
-    nev = 5 ! I only care about the ground state right now. 
+    write(*,"(A)") "Allocated Hamiltonian storage" 
+    call print_memory(dm**2 *8.d0)
+    tot_memory = tot_memory + dm**2*8.d0
+
+    print*
+    write(*,"(A)") "Allocated J storage" 
+    call print_memory(dm**2 *8.d0)
+    tot_memory = tot_memory + dm**2*8.d0
+
+    call print_total_memory
+    
+    nev = 10 ! I only care about the ground state right now. 
     ido = 0  ! status integer is 0 at start
     BMAT = 'I' ! standard eigenvalue problem (N for generalized) 
-    which = 'SM' ! compute smallest eigenvalues in magnitude ('SA') is algebraic. 
-    tol = 0.0 ! error tolerance? (wtf zero?) 
+    which = 'SA' ! compute smallest eigenvalues (algebraic) ('SM') is magnitude.
+    tol = 1.0E-10 ! error tolerance? (wtf zero?) 
     info = 0
     ncv = 5*nev ! number of lanczos vectors I guess
     lworkl = ncv*(ncv+8) 
@@ -44,13 +57,14 @@ contains
     mxiter = 500 
     mode = 1
     
-    allocate(eigs(dm),resid(dm),work(10*dm),workD(3*dm)) 
+    allocate(resid(dm),work(10*dm),workD(3*dm)) 
     
     iparam(1) = ishift
     iparam(3) = mxiter
     iparam(7) = mode
     ii = 0
-    
+
+    t1 = omp_get_Wtime()
     do 
        ! so V is the krylov subspace matrix that is being diagonalized
        ! it does not need to be initialized, so long as you have the other 
@@ -76,9 +90,11 @@ contains
        end if
        
     end do
+    t2 = omp_get_Wtime()
     write(6,*) 
-    print *, "converged after", ii, "iterations"
-
+    write(*,"(A,I5,A,f10.1,A)")  "converged after", ii, " iterations and "&
+         ,t2-t1," seconds" 
+    print*
     
     ! the ritz values are out of order right now. Need to do post
     ! processing to fix this, and get the eigenvectors
@@ -95,51 +111,36 @@ contains
     
     
     Egs = DX(1)
-    PRINT*, Egs
-    
-    do ii = 1,dm
-       write(78,*) ii, Z(ii,1)**2
-    end do
-    
-    call print_matrix(HAM(1:12,1:12))
-    
-    deallocate(DX)    
-    allocate(qx(10*dm))
-    allocate(dx(dm))
-    info = 0
-    DX = 0.0
-    QX = 0.0
-    call dsyev('V','U',dm,HAM,dm,DX,QX,10*dm,info)
 
-    print*, DX(1:10) 
-    do ii = 1,dm
-       write(79,*) ii, HAM(ii,1)**2
-    end do
+    t1 = omp_get_wtime()
 
-    print*, 'CONSTRUCTING JMAT'
+    write(*, "(A)") "Computing J matrix" 
     do II = 1,dm
-       do JJ = 1,dm
-          JTOT_MAT(II,JJ) =  Jtot_elem(II,JJ,basis)
+       do JJ = II,dm
+          Jtot_MAT(II,JJ) =  Jtot_elem(II,JJ,basis)
+          Jtot_MAT(JJ,II) = Jtot_MAT(II,JJ)
        end do
     end do
 
-    call print_matrix(JTOT_MAT(1:10,1:10))
-
-    print*, "computing J values" 
-    do AA = 1,10 
+    print*
+    write(*, "(A)") "================================================="
+    write(*, "(A)") "  ENERGY       EX ENERGY       SPIN      J(J+1)  " 
+    write(*, "(A)") "================================================="
+    do AA = 1,10
        sm = 0.d0 
        do II = 1, dm
+          amp1 = Z(ii,AA)
           do JJ = 1, dm
-             sm = sm + HAM(ii,AA)*Jtot_MAT(II,JJ)*HAM(jj,AA)
+             amp2 = Z(jj,AA)
+             sm = sm + amp1 * Jtot_mat(II,JJ)* amp2
           end do
        end do
-
-       print*, 'ENERGY: ', DX(AA)
-       print*, 'SPIN^2: ', sm
+       write(*,"(3(f12.4),(I4))") DX(AA),DX(AA)-DX(1),sm,nint(sm)
+       write(66,"(3(e25.14))") DX(AA),DX(AA)-DX(1),sm
        print*
     end do
-    
-    
+    t2 = omp_get_wtime()    
+    print*, "TIME: ", t2-t1
     deallocate(HAM,Jtot_MAT)
 
     

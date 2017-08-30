@@ -28,7 +28,7 @@ contains
     end if
     
     if (ja==jb)then
-       get_Jtot_1b = ja/2*(ja/2+1.d0)       
+       get_Jtot_1b = float(ja)/2.d0*(float(ja)/2.d0+1.d0)       
     else
        get_Jtot_1b = 0.d0
     end if
@@ -58,11 +58,6 @@ contains
     jb = mbas%jj(b)
     mb = mbas%mm(b)
 
-    if (mbas%mm(a) .ne. mbas%mm(b)) then
-       jplus = 0.d0
-       return
-    end if
-
     if (mbas%tz(a) .ne. mbas%tz(b)) then
        jplus = 0.d0
        return
@@ -83,7 +78,7 @@ contains
        return
     end if
 
-    jplus = sqrt(((jb + mb)/2 +1.d0) *((jb-mb)/2))
+    jplus = sqrt((float(jb + mb)/2 +1.d0) *(float(jb-mb)/2.d0))
   end function jplus
 
    real(8) function jminus(a,b)
@@ -95,11 +90,6 @@ contains
     ma = mbas%mm(a) 
     jb = mbas%jj(b)
     mb = mbas%mm(b)
-
-    if (mbas%mm(a) .ne. mbas%mm(b)) then
-       jminus = 0.d0
-       return
-    end if
 
     if (mbas%tz(a) .ne. mbas%tz(b)) then
        jminus = 0.d0
@@ -115,13 +105,13 @@ contains
        jminus = 0.d0
        return
     end if
-
+    
     if (ma .ne.  mb - 2) then
        jminus = 0.d0
        return
     end if
 
-    jminus = sqrt(((jb - mb)/2 +1.d0) *((jb+mb)/2))
+    jminus = sqrt(( float(jb - mb)/2.d0 +1.d0) *(float(jb+mb)/2.d0))
   end function jminus
  
 
@@ -160,7 +150,7 @@ contains
        return
     end if
 
-    jz = mb/2
+    jz = float(mb)/2.d0
   end function jz
 
 

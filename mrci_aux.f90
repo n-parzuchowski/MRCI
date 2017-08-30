@@ -42,8 +42,37 @@ END type tpd
 type(spd),public :: jbas,mbas
 type(tpd),public :: tp_basis 
 character(500) :: ME_DIR,SP_DIR,INI_DIR,OUTPUT_DIR
-     
+integer,public :: proj !!total projection
+real(8) :: tot_memory
 contains
+
+  subroutine print_memory(mem)
+    implicit none
+
+    real(8),intent(in) :: mem   
+    
+    if (mem > 1024.**3 ) then
+       write(*,'(A,f6.2,A)') "Memory: ",mem/(1024.**3)," GB"
+    else if (mem > 1024.**2 ) then   
+       write(*,'(A,f6.2,A)') "Memory: ",mem/(1024.**2)," MB"
+    else if (mem > 1024. ) then   
+       write(*,'(A,f6.2,A)') "Memory: ",mem/(1024.)," KB"
+    end if
+           
+  end subroutine print_memory
+    
+  subroutine print_total_memory
+    implicit none
+    
+    if (tot_memory > 1024.**3 ) then
+       write(*,'(A,f6.2,A)') "Aggregate memory: ",tot_memory/(1024.**3)," GB"
+    else if (tot_memory > 1024.**2 ) then   
+       write(*,'(A,f6.2,A)') "Aggregate memory: ",tot_memory/(1024.**2)," MB"
+    else if (tot_memory > 1024. ) then   
+       write(*,'(A,f6.2,A)') "Aggregate memory: ",tot_memory/(1024.)," KB"
+    end if
+    print*
+  end subroutine print_total_memory
 !!!===========================================================
 !!!===========================================================
   subroutine read_input_file(finput,spfile,intfile,reffile,AA,Aprot,Aneut)
@@ -95,7 +124,10 @@ contains
 
     read(45,*) !! Enter number of refs
     read(45,*) denfile
-
+    
+    read(45,*) !! Enter 2*projection
+    read(45,*) proj
+    
     read(45,*) !! Enter number of refs
     read(45,*) num_refs
     
