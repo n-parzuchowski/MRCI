@@ -3,7 +3,7 @@ module mrci_solve
   use mrci_operators
   implicit none
 
-  real(8),allocatable,dimension(:,:) :: HAM,JTOT_MAT
+  real(8),allocatable,dimension(:) :: HAM,JTOT_MAT
 contains
 
   subroutine diagonalize(z0,z1,z2,basis)
@@ -29,17 +29,17 @@ contains
     print*
     
     dm = size(basis(:,1))
-    allocate(HAM(dm,dm),JTOT_MAT(dm,dm))
+    allocate(HAM(dm*(dm+1)/2))
     HAM=0.d0
 
     write(*,"(A)") "Allocated Hamiltonian storage" 
-    call print_memory(dm**2 *8.d0)
-    tot_memory = tot_memory + dm**2*8.d0
+    call print_memory(dm*(dm+1)*4.d0)
+    tot_memory = tot_memory + dm*(dm+1)*4.d0
 
-    print*
-    write(*,"(A)") "Allocated J storage" 
-    call print_memory(dm**2 *8.d0)
-    tot_memory = tot_memory + dm**2*8.d0
+    ! print*
+    ! write(*,"(A)") "Allocated J storage" 
+    ! call print_memory(dm**2 *8.d0)
+    ! tot_memory = tot_memory + dm**2*8.d0
 
     call print_total_memory
     
@@ -58,6 +58,14 @@ contains
     mode = 1
     
     allocate(resid(dm),work(10*dm),workD(3*dm)) 
+
+
+    write(*,"(A)") "Allocated workspace" 
+    call print_memory((14*dm+ dm*NCV + lworkl)*8.d0)
+    tot_memory = tot_memory + (14*dm+ dm*NCV + lworkl)*8.d0
+
+    call print_total_memory
+
     
     iparam(1) = ishift
     iparam(3) = mxiter
@@ -114,13 +122,13 @@ contains
 
     t1 = omp_get_wtime()
 
-    write(*, "(A)") "Computing J matrix" 
-    do II = 1,dm
-       do JJ = II,dm
-          Jtot_MAT(II,JJ) =  Jtot_elem(II,JJ,basis)
-          Jtot_MAT(JJ,II) = Jtot_MAT(II,JJ)
-       end do
-    end do
+    ! write(*, "(A)") "Computing J matrix" 
+    ! do II = 1,dm
+    !    do JJ = II,dm
+    !       Jtot_MAT(II,JJ) =  Jtot_elem(II,JJ,basis)
+    !       Jtot_MAT(JJ,II) = Jtot_MAT(II,JJ)
+    !    end do
+    ! end do
 
     print*
     write(*, "(A)") "================================================="
@@ -128,20 +136,20 @@ contains
     write(*, "(A)") "================================================="
     do AA = 1,10
        sm = 0.d0 
-       do II = 1, dm
-          amp1 = Z(ii,AA)
-          do JJ = 1, dm
-             amp2 = Z(jj,AA)
-             sm = sm + amp1 * Jtot_mat(II,JJ)* amp2
-          end do
-       end do
+       ! do II = 1, dm
+       !    amp1 = Z(ii,AA)
+       !    do JJ = 1, dm
+       !       amp2 = Z(jj,AA)
+       !       sm = sm + amp1 * Jtot_mat(II,JJ)* amp2
+       !    end do
+       ! end do
        write(*,"(3(f12.4),(I4))") DX(AA),DX(AA)-DX(1),sm,nint(sm)
        write(66,"(3(e25.14))") DX(AA),DX(AA)-DX(1),sm
        print*
     end do
     t2 = omp_get_wtime()    
     print*, "TIME: ", t2-t1
-    deallocate(HAM,Jtot_MAT)
+    deallocate(HAM)
 
     
   end subroutine diagonalize
@@ -155,18 +163,29 @@ contains
     type(block_mat),allocatable,dimension(:) :: z2
     integer,dimension(:,:) :: basis
     real(8) :: z0
-    integer :: N,II,JJ
+    integer :: N,II,JJ,XX,Imax,Imin
     real(8),dimension(N) :: v,w
 
     w = 0.d0 
     do II = 1,N
-       do JJ = 1,N
-          HAM(II,JJ) =  mat_elem(II,JJ,basis,z1,z2)
-          w(II) = w(II) +  v(JJ) * HAM(II,JJ)
+       do JJ = II,N
+          XX = bosonic_tp_index(II,JJ,N)
+          HAM(XX) =  mat_elem(II,JJ,basis,z1,z2)
+          w(II) = w(II) +  v(JJ) * HAM(XX)
        end do
        w(II) = w(II) + v(II) * z0   ! zero body offset
-       HAM(II,II) = HAM(II,II) + z0 
+       XX = bosonic_tp_index(II,II,N)
+       HAM(XX) = HAM(XX) + z0 
     end do
+
+    ! exploit hermiticity 
+    do II = 1,N
+       do JJ = 1,II-1
+          XX = bosonic_tp_index(JJ,II,N)
+          w(II) = w(II) +  v(JJ) * HAM(XX) !* hermitian factor
+       end do
+    end do
+
     
   end subroutine first_mat_vec_prod
 
@@ -178,16 +197,24 @@ contains
     type(block_mat),allocatable,dimension(:) :: z2
     integer,dimension(:,:) :: basis
     real(8) :: z0
-    integer :: N,II,JJ
+    integer :: N,II,JJ,XX
     real(8),dimension(N) :: v,w
 
-    w = 0.d0 
+    w = 0.d0
     do II = 1,N
-       do JJ = 1,N
-          w(II) = w(II) +  v(JJ) * HAM(II,JJ)
+       do JJ = II,N
+          XX = bosonic_tp_index(II,JJ,N)
+          w(II) = w(II) +  v(JJ) * HAM(XX)
        end do
     end do
-    
+
+    do II = 1,N
+       do JJ = 1,II-1
+          XX = bosonic_tp_index(JJ,II,N)
+          w(II) = w(II) +  v(JJ) * HAM(XX)! * hermitian factor
+       end do
+    end do
+
   end subroutine mat_vec_prod
   
   real(8) function mat_elem(II,JJ,basis,z1,z2)  
