@@ -43,7 +43,7 @@ type(spd),public :: jbas,mbas
 type(tpd),public :: tp_basis 
 character(500) :: ME_DIR,SP_DIR,INI_DIR,OUTPUT_DIR
 integer,public :: proj !!total projection
-real(8) :: tot_memory
+real(8) :: tot_memory,time_Zero
 contains
 
   subroutine print_memory(mem)

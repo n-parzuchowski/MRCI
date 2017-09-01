@@ -1,15 +1,16 @@
-FC = gfortran $(TFLAGS)  
+FC = ifort $(FFLAGS)  
 CXX = g++ $(CXXFLAGS) 
 
 p1 = run_mrci
 
-FFLAGS = -O3 -fopenmp
-TFLAGS = -g -O0 -fbounds-check -fopenmp
-PFLAGS = -O3 -pg
+FFLAGS = -O3 -openmp -mkl -lz -diag-disable 8291
+TFLAGS = -g -O0 -mkl -check bounds -openmp
+CXXFLAGS = -std=c++11 -O3
+
+LIB_ARPCK = /mnt/home/parzuch6/nuclear_IMSRG/src/ARPACK/libarpack_SUN4.a
 
 CXXFLAGS = -std=c++11 -O3
 
-LIBS =  -lz -larpack -llapack #-L/user/local/lib/ -llapack -lblas  -lz
 
 obfiles = bin
 modfiles = md
@@ -19,7 +20,7 @@ OBJ = $(patsubst %.f90, $(obfiles)/%.o, $(wildcard *.f90))
 OBJ_f = $(patsubst %.f, $(obfiles)/%.o, $(wildcard *.f))  
 
 all: $(OBJ_f) $(OBJ)
-	${FC} $^ -o ${p1} -J$(modfiles) ${LIBS}
+	${FC} $^ -o ${p1} ${LIB_ARPCK} -module $(modfiles) -lz
 
 $(OBJ): | $(obfiles)
 $(OBJ_f): | $(obfiles)
@@ -29,10 +30,10 @@ $(obfiles):
 	@mkdir -p $(modfiles)
 
 $(obfiles)/%.o: %.f
-	${FC} -c -o $@ $< -J$(modfiles) ${LIBS}
+	${FC} -c -o $@ $< -module $(modfiles) ${LIBS}
 
 $(obfiles)/%.o: %.f90
-	${FC} -c -o $@ $< -J$(modfiles) ${LIBS}
+	${FC} -c -o $@ $< -module $(modfiles) ${LIBS}
 
 # nice gift from FEI to detect dependencies automatically
 dependencies.mk: $(F90SRC)

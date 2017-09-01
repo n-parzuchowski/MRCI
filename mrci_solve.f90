@@ -12,7 +12,7 @@ contains
     type(block_mat_full),allocatable,dimension(:,:) :: z1    
     type(block_mat),allocatable,dimension(:) :: z2
     integer,dimension(:,:) :: basis
-    real(8) :: z0 
+    real(8) :: z0,t3,t4
     real(8),allocatable,dimension(:) :: workl,DX,QX,resid,work,workD
     real(8),allocatable,dimension(:,:) :: V,Z
     integer :: lwork,info,ido,ncv,ldv,iparam(11),ipntr(11),dm
@@ -22,6 +22,8 @@ contains
     character(2) :: which
     logical :: rvec
     logical,allocatable,dimension(:) :: selct
+
+    t1 = omp_get_wtime()
 
     print* 
     write(*,"(A)") '=====================================' 
@@ -72,7 +74,7 @@ contains
     iparam(7) = mode
     ii = 0
 
-    t1 = omp_get_Wtime()
+    t3 = omp_get_Wtime()
     do 
        ! so V is the krylov subspace matrix that is being diagonalized
        ! it does not need to be initialized, so long as you have the other 
@@ -98,10 +100,10 @@ contains
        end if
        
     end do
-    t2 = omp_get_Wtime()
+    t4 = omp_get_Wtime()
     write(6,*) 
     write(*,"(A,I5,A,f10.1,A)")  "converged after", ii, " iterations and "&
-         ,t2-t1," seconds" 
+         ,t4-t3," seconds" 
     print*
     
     ! the ritz values are out of order right now. Need to do post
@@ -120,7 +122,6 @@ contains
     
     Egs = DX(1)
 
-    t1 = omp_get_wtime()
 
     ! write(*, "(A)") "Computing J matrix" 
     ! do II = 1,dm
@@ -150,6 +151,9 @@ contains
     t2 = omp_get_wtime()    
     print*, "TIME: ", t2-t1
     deallocate(HAM)
+    t2 = omp_get_Wtime() 
+    write(*,"(A,f10.1,A,f10.1)") "Time: ", t2-t1, " Total: ", t2-time_Zero 
+
 
     
   end subroutine diagonalize

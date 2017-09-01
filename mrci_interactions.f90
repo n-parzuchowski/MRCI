@@ -32,86 +32,86 @@ contains
     character(20) :: mes,memstr
     character(3) :: units
     character(10) :: fm,fma2,fma1,fme
-!    type(c_ptr) :: buf
- !   integer(c_int) :: hndle,sz
-  !  character(kind=C_CHAR,len=200) :: buffer
-       
-    ! me1bfile = intfile(1:len(trim(intfile))-5)//'1b.gz'
-    me1bfile = intfile(1:len(trim(intfile))-5)//'1b'
+    type(c_ptr) :: buf
+    integer(c_int) :: hndle,sz
+    character(kind=C_CHAR,len=200) :: buffer
     
-   ! hndle=gzOpen(trim(ME_DIR)//trim(adjustl(me1bfile))//achar(0),"r"//achar(0))
-    open(unit=45,file= trim(ME_DIR)//trim(adjustl(me1bfile)) ) 
-    Lmax = mbas%lmax
-    eMax = 2*mbas%nmax
- !   sz = 200
+     me1bfile = intfile(1:len(trim(intfile))-5)//'1b.gz'
+  !  me1bfile = intfile(1:len(trim(intfile))-5)//'1b'
+    
+     hndle=gzOpen(trim(ME_DIR)//trim(adjustl(me1bfile))//achar(0),"r"//achar(0))
+     !open(unit=45,file= trim(ME_DIR)//trim(adjustl(me1bfile)) ) 
+     Lmax = mbas%lmax
+     eMax = 2*mbas%nmax
+     sz = 200
 
-    allocate(z1(2,2*Lmax+1))
-    
-    do t = 0,1 !neutrons are 0, protons 1
-       lj = 0
-       do l = 0, Lmax
-          do  twoj = abs(2*l - 1) , 2*l+1 , 2
-             lj=lj+1             
-             nMax = (eMax - l)/2
-             allocate(z1(t+1,lj)%XX(nMax+1,nMax+1))
-             z1(t+1,lj)%XX=0.d0
-          end do
-       end do
-    end do
+     allocate(z1(2,2*Lmax+1))
+     
+     do t = 0,1 !neutrons are 0, protons 1
+        lj = 0
+        do l = 0, Lmax
+           do  twoj = abs(2*l - 1) , 2*l+1 , 2
+              lj=lj+1             
+              nMax = (eMax - l)/2
+              allocate(z1(t+1,lj)%XX(nMax+1,nMax+1))
+              z1(t+1,lj)%XX=0.d0
+           end do
+        end do
+     end do
 
 
     ! read verion line, and then some integer
-!    buf=gzGets(hndle,buffer,sz) 
-    read(45,*) 
+    buf=gzGets(hndle,buffer,sz) 
+!    read(45,*) 
     ! the integer probably has to do with the file size
-!    buf=gzGets(hndle,buffer,sz) 
-    read(45,*) bMax
+    buf=gzGets(hndle,buffer,sz) 
+!    read(45,*) bMax
       
-    ! read(buffer(1:4),'(I4)',iostat=ist) bMax 
-    ! if (ist .ne. 0 ) then 
-    !    read(buffer(1:3),'(I3)',iostat=ist) bMax 
-    !    if (ist .ne. 0 ) then 
-    !       read(buffer(1:2),'(I2)',iostat=ist) bMax
-    !       if (ist .ne. 0 ) then 
-    !          read(buffer(1:1),'(I1)',iostat=ist) bMax
-    !       end if
-    !    end if
-    ! end if
+    read(buffer(1:4),'(I4)',iostat=ist) bMax 
+    if (ist .ne. 0 ) then 
+       read(buffer(1:3),'(I3)',iostat=ist) bMax 
+       if (ist .ne. 0 ) then 
+          read(buffer(1:2),'(I2)',iostat=ist) bMax
+          if (ist .ne. 0 ) then 
+             read(buffer(1:1),'(I1)',iostat=ist) bMax
+          end if
+       end if
+    end if
     
     ! me0b 
-!    buf=gzGets(hndle,buffer,sz) 
-    read(45,*) z0 
+    buf=gzGets(hndle,buffer,sz) 
+!    read(45,*) z0 
     
-    ! read(buffer(1:7),'(f7.1)')  me
+    read(buffer(1:7),'(f7.1)')  me
         
-    ! if (buffer(1:1)=='-') then
-    !    lenme = 1+digets(floor(abs(me)))+7
-    ! else
-    !    lenme = digets(floor(abs(me)))+7
-    ! end if
+    if (buffer(1:1)=='-') then
+       lenme = 1+digets(floor(abs(me)))+7
+    else
+       lenme = digets(floor(abs(me)))+7
+    end if
 
-    ! mes = fmtlen(lenme)
+    mes = fmtlen(lenme)
 
-    ! read(buffer(1:lenme),'(f'//trim(mes)//'.6)')  z0 
+    read(buffer(1:lenme),'(f'//trim(mes)//'.6)')  z0 
 
     !! the rest of the file is "t lj  a  aa  me"
     do   ii = 1, bMax 
 
-       read(45,*) t,lj,a1,a2,me
+ !      read(45,*) t,lj,a1,a2,me
        
-!       buf=gzGets(hndle,buffer,sz)
-       z1(t+1,lj+1)%XX(a1+1,a2+1)  = me
+       buf=gzGets(hndle,buffer,sz)
+!       z1(t+1,lj+1)%XX(a1+1,a2+1)  = me
        
-       ! read(buffer(1:2),'(I2)') t
-       ! read(buffer(3:5),'(I3)') lj
-       ! read(buffer(6:9),'(I4)') a1
-       ! read(buffer(10:12),'(I3)') a2
-       ! read(buffer(13:24),'(f11.6)') z1(t+1,lj+1)%XX(a1+1,a2+1) 
+       read(buffer(1:2),'(I2)') t
+       read(buffer(3:5),'(I3)') lj
+       read(buffer(6:9),'(I4)') a1
+       read(buffer(10:12),'(I3)') a2
+       read(buffer(13:24),'(f11.6)') z1(t+1,lj+1)%XX(a1+1,a2+1) 
        
     end do
 
-    close(45) 
-!    sz=gzclose(hndle)
+!    close(45) 
+    sz=gzclose(hndle)
   end subroutine read_me1b
     
    
@@ -122,6 +122,7 @@ contains
     integer :: q,a,totme,buflen,ist,bMax,b,endpos,i,j
     integer :: a1,a2,a1len,a2len,aa,menpos,lenme,ii
     real(8) :: mem,me
+    real(8) :: t1,t2,omp_get_wtime
     character(200) :: intfile
     character(20) :: mes,memstr
     character(3) :: units
@@ -130,7 +131,8 @@ contains
     type(c_ptr) :: buf
     integer(c_int) :: hndle,sz
     character(kind=C_CHAR,len=200) :: buffer
-  
+    
+    t1 = omp_get_Wtime()
     write(*,*)
     write(*,"(A)") "======================================="
     write(*,"(A)") "READING OPERATOR FILE"    
@@ -321,8 +323,8 @@ contains
        end do
     end do
     sz= gzClose(hndle) 
- 
-        
+    t2 = omp_get_Wtime() 
+    write(*,"(A,f6.1,A,f10.1)") "Time: ", t2-t1, " Total: ", t2-time_Zero 
   end subroutine read_me2b
     
 
@@ -584,8 +586,9 @@ contains
     type(block_mat),dimension(:) :: z2
     integer :: t,lj,nMax,ljMax,n1,n2,a,b,i,j,ji
     integer :: J_min,J_max,JT,jj,ja,jb,A1,A2,q
-    real(8) :: sm,dir,ex
+    real(8) :: sm,dir,ex,t1,t2,omp_get_Wtime
 
+    t1 = omp_get_Wtime() 
     print* 
     write(*,"(A)") '=====================================' 
     write(*,"(A)") 'UNNORMAL ORDERING INTERACTION'
@@ -671,6 +674,9 @@ contains
 
     write(*,"(A)") "Unnormal ordering successful" 
     write(*,"(A,f12.4)") "Unnormal-ordered offset: ",z0
+    t2 = omp_get_Wtime() 
+    write(*,"(A,f8.1,A,f10.1)") "Time: ", t2-t1, " Total: ", t2-time_Zero 
+
   end subroutine unnormal_order
 
     

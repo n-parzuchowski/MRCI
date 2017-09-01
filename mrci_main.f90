@@ -6,7 +6,11 @@ program mrci_main
   character(200) :: input,ref_file,sp_file,int_file,den_file
   integer,allocatable,dimension(:,:) :: ref,basis
   real(8) :: x
+  real(8) :: omp_get_Wtime
 
+  time_Zero = omp_get_wtime()
+
+  
   call print_header
   call getarg(1,input)
   if (trim(input) == '') STOP "NEED INPUT FILE" 

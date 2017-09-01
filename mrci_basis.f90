@@ -99,8 +99,10 @@ contains
     integer :: q,mout,nin,test,BigT
     integer,allocatable,dimension(:) :: valid
     integer,dimension(mbas%Abody) :: newSD 
+    real(8) :: t1,t2,omp_get_wtime
     logical :: present
 
+    t1=omp_get_wtime()
     write(*,'(A)')  '===================================================='
     write(*,'(A)')  'GENERATING SD BASIS'
     write(*,*)
@@ -227,7 +229,8 @@ contains
           STOP "BASIS HAS BAD QUANTUM NUMBERS."
        end if
     end do
-
+    t2=omp_get_wtime()
+    write(*,"(A,f6.1,A,f10.1)") "Time: ", t2-t1, " Total: ", t2-time_Zero 
   end subroutine generate_basis
 !!!===========================================================
 !!!===========================================================
