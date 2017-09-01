@@ -171,6 +171,7 @@ contains
     real(8),dimension(N) :: v,w
 
     w = 0.d0 
+    !$OMP PARALLEL DO PRIVATE(XX,II,JJ),SHARED(N,z0,z1,z2,basis,HAM)
     do II = 1,N
        do JJ = II,N
           XX = bosonic_tp_index(II,JJ,N)
@@ -181,7 +182,8 @@ contains
        XX = bosonic_tp_index(II,II,N)
        HAM(XX) = HAM(XX) + z0 
     end do
-
+    !$OMP END PARALLEL DO
+    
     ! exploit hermiticity 
     do II = 1,N
        do JJ = 1,II-1

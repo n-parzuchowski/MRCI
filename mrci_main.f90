@@ -21,7 +21,9 @@ program mrci_main
   mbas%Aneut = Aneut
   
   call init_sp_basis(sp_file)
-      
+
+  write(*,"(A,I8)") "Number of sp states: ", mbas%ntot
+  
   call read_Ref_file(ref_file,num_refs,REF,AA,den_file)
 
   call generate_basis(ref,basis)
