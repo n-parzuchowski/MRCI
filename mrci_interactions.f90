@@ -121,7 +121,7 @@ contains
     type(block_mat),allocatable,dimension(:) :: z2
     integer :: q,a,totme,buflen,ist,bMax,b,endpos,i,j
     integer :: a1,a2,a1len,a2len,aa,menpos,lenme,ii
-    real(8) :: mem,me
+    real(8) :: mem,me,x
     real(8) :: t1,t2,omp_get_wtime
     character(200) :: intfile
     character(20) :: mes,memstr
@@ -220,12 +220,11 @@ contains
     end do
 
     sz= 200
-
+    get_out = .false.
     do_read=.true. 
     do q = 1, tp_basis%bMax
-       buf=gzGets(hndle,buffer,sz) !! empty line
+       if (.not. get_out) buf=gzGets(hndle,buffer,sz) !! empty line
        buf=gzGets(hndle,buffer,sz) !! comment
-
        get_out = .false. 
        ii = 1
        do a1 = 1 , tp_basis%block(q)%aMax
@@ -244,6 +243,7 @@ contains
 
              read( buffer(menpos:menpos+9),'(f10.2)',iostat=ist) me
              if (ist .ne. 0) then
+                
                 ! we've reached the end of the block
                 get_out = .true.
                 exit
@@ -415,7 +415,8 @@ contains
     integer :: ax,bx,cx,dx,ay,by,cy,dy
     integer :: ma,mb,mc,md ,A1,A2,BB,Ntot,Amin,Amax,pre
     real(8) :: me,dcgi
-
+    
+    
     pre = 1
 
     ja = jbas%jj(ay)
@@ -423,6 +424,16 @@ contains
     jc = jbas%jj(cy)
     jd = jbas%jj(dy) 
 
+    if ((JT> ja+jb).or.(JT > jc+jd)) then 
+       get_Jme2b = 0.d0
+       return
+    end if
+       
+    if ((JT < abs(ja-jb)).or.(JT < abs(jc-jd))) then
+       get_Jme2b = 0.d0
+       return
+    end if
+    
     a = ay
     b = by
     if ( ay > by ) then
@@ -679,5 +690,47 @@ contains
 
   end subroutine unnormal_order
 
+  subroutine traces
+    implicit none
+  
+    integer :: ii,jj,Jtot,A 
+    real(8) :: sm
+
+    A = mbas%Abody
+
+    write(*,*)
+    
+    sm = 0.d0
+    do ii = 1, jbas%ntot
+       sm = sm + (jbas%jj(ii)+1.d0)*get_jme1b(ii,ii,lambda1b)
+    end do
+
+    write(*,"(A,f9.2)") "Tr[rho1b]:",sm
+    if ( abs(sm - A ) > 1e-3  ) then
+       STOP "one-body density matrix has incorrect trace!"
+    end if
+
+    sm=0.d0
+    do ii = 1, jbas%ntot
+       do jj = 1,jbas%ntot
+          
+          do Jtot = 0,18,2 
+             
+             sm = sm + (Jtot+1.d0)*get_Jme2b(ii,jj,ii,jj,Jtot,lambda2b) 
+          end do
+          
+          sm = sm   + get_jme1b(ii,ii,lambda1b)*get_jme1b(jj,jj,lambda1b)&
+               *(jbas%jj(ii)+1.d0)*(jbas%jj(jj)+1.d0) &
+               - get_jme1b(ii,jj,lambda1b)*get_jme1b(jj,ii,lambda1b)*(jbas%jj(ii)+1.d0) 
+       end do
+    end do
+
+    write(*,"(A,f9.2)") "Tr[rho2b]:",sm
+    if ( abs(sm - A*(A-1) ) > 1e-2  ) then
+       STOP "two-body density matrix has incorrect trace!"
+    end if
+
+  end subroutine traces
+  
     
  end module

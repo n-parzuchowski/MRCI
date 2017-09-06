@@ -5,9 +5,10 @@ program mrci_main
   integer :: ii,jj,AA,num_refs,Aprot,Aneut ,q,t,lj
   character(200) :: input,ref_file,sp_file,int_file,den_file
   integer,allocatable,dimension(:,:) :: ref,basis
-  real(8) :: x
+  real(8) :: x,sm
   real(8) :: omp_get_Wtime
-
+  integer :: i,j,k,l,Jtot
+  
   time_Zero = omp_get_wtime()
   
   call print_header
@@ -32,11 +33,13 @@ program mrci_main
   ! get interaction
   call read_me2b(me2b,int_file)
   call read_me1b(me0b,me1b,int_file)
-  
+
+ 
   ! get density matrix
   call read_me2b(lambda2b,den_file)
   call read_me1b(x,lambda1b,den_file)
 
+  call traces
   write(*,"(A,f12.4)") "Normal-ordered E0: ", ME0B
   call unnormal_order(me0b,me1b,me2b)
 
