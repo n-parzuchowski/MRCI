@@ -84,7 +84,7 @@ contains
             lworkl, info )
        ! The actual matrix only gets multiplied with the "guess" vector in "matvec_prod" 
        
-!       call progress_bar( ii )
+       call progress_bar( ii )
        ii=ii+1
        
        
@@ -174,7 +174,7 @@ contains
     nthr=omp_get_num_threads()
     !$OMP END PARALLEL
     w = 0.d0 
-    !$OMP PARALLEL DO PRIVATE(XX,II,JJ,q),SHARED(N,z0,z1,z2,basis,HAM,nthr)    
+    !$OMP PARALLEL DO PRIVATE(XX,II,JJ,q),SHARED(N,z0,z1,z2,basis,HAM,nthr,v,w)    
     do q = 1 , nthr   !!! each thread works on one "q" 
        do II = q,N,nthr  ! matrix is triangle, so make sure one thread doesn't do all the work. 
           do JJ = II,N
@@ -189,14 +189,17 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    ! exploit hermiticity 
-    do II = 1,N
-       do JJ = 1,II-1
-          XX = bosonic_tp_index(JJ,II,N)
-          w(II) = w(II) +  v(JJ) * HAM(XX) !* hermitian factor
+    ! exploit hermiticity
+    !$OMP PARALLEL DO PRIVATE(XX,II,JJ,q),SHARED(N,HAM,nthr,v,w)    
+    do q = 1 , nthr  
+       do II = q,N,nthr  
+          do JJ = 1,II-1
+             XX = bosonic_tp_index(JJ,II,N)
+             w(II) = w(II) +  v(JJ) * HAM(XX) !* hermitian factor
+          end do
        end do
     end do
-
+    !$OMP END PARALLEL DO
     
   end subroutine first_mat_vec_prod
 
@@ -208,24 +211,29 @@ contains
     type(block_mat),allocatable,dimension(:) :: z2
     integer,dimension(:,:) :: basis
     real(8) :: z0
-    integer :: N,II,JJ,XX
+    integer :: N,II,JJ,XX,nthr,q,omp_get_num_threads
     real(8),dimension(N) :: v,w
 
+    !$OMP PARALLEL
+    nthr=omp_get_num_threads()
+    !$OMP END PARALLEL
+    
     w = 0.d0
-    do II = 1,N
-       do JJ = II,N
-          XX = bosonic_tp_index(II,JJ,N)
-          w(II) = w(II) +  v(JJ) * HAM(XX)
+    !$OMP PARALLEL DO PRIVATE(XX,II,JJ,q),SHARED(N,HAM,nthr,v,w)    
+    do q = 1 , nthr   !!! each thread works on one "q" 
+       do II = q,N,nthr  
+          do JJ = II,N
+             XX = bosonic_tp_index(II,JJ,N)
+             w(II) = w(II) +  v(JJ) * HAM(XX)
+          end do
+
+          do JJ = 1,II-1
+             XX = bosonic_tp_index(JJ,II,N)
+             w(II) = w(II) +  v(JJ) * HAM(XX)! * hermitian factor
+          end do
        end do
     end do
-
-    do II = 1,N
-       do JJ = 1,II-1
-          XX = bosonic_tp_index(JJ,II,N)
-          w(II) = w(II) +  v(JJ) * HAM(XX)! * hermitian factor
-       end do
-    end do
-
+    !$OMP END PARALLEL DO 
   end subroutine mat_vec_prod
   
   real(8) function mat_elem(II,JJ,basis,z1,z2)  
