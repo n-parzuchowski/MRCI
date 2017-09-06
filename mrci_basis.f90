@@ -111,10 +111,10 @@ contains
     Abody = mbas%Abody
 
     num_Refs = size(REF(:,1)) 
-    allocate(SD_BASIS(14000,Abody)) 
+    allocate(SD_BASIS(100000,Abody)) 
     write(*,'(A)') "Allocated generic SD basis placeholder"
-    call print_memory(14000*Abody*4.d0)
-    tot_memory = tot_memory + 14000*Abody*4.d0
+    call print_memory(100000*Abody*4.d0)
+    tot_memory = tot_memory + 100000*Abody*4.d0
     call print_total_memory
     
     
@@ -122,7 +122,7 @@ contains
        call parity_M_and_T(REF(ix,:),mbas,PAR,M,BigT ) 
        if( ( PAR .ne. 0 ) .or. (M .ne. proj) .or.&
             (BigT .ne. (mbas%Aneut-mbas%Aprot)))  then
-          print*, ix,BigT,mbas%Aneut-mbas%Aprot
+          print*, ix,BigT,mbas%Aneut-mbas%Aprot,PAR,M
           STOP "REFERENCES HAVE BAD QUANTUM NUMBERS."
        end if
        call sort_SD(REF(ix,:))
@@ -210,15 +210,15 @@ contains
 
     deallocate(SD_BASIS)
     write(*,'(A)')  "Deallocated generic SD basis placeholder"
-    tot_memory = tot_memory - 14000*Abody*4.d0
+    tot_memory = tot_memory - 100000*Abody*4.d0
     call print_total_memory
 
     write(*,'(A)')  '===================================================='
     write(*,'(A)')  'SLATER DETERMINANT BASIS GENERATED'
     write(*,'(I5,A)')   q, ' BASIS VECTORS'
 
-    write(*,'(A)')  "In order to store a full matrix in this basis:"
-    call print_memory(q*q*8.d0)
+    write(*,'(A)')  "In order to store a matrix in this basis:"
+    call print_memory(dfloat(q)*dfloat(q+1)*4.d0)
     
     
     !! check that nothing is wrong

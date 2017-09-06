@@ -9,7 +9,6 @@ program mrci_main
   real(8) :: omp_get_Wtime
 
   time_Zero = omp_get_wtime()
-
   
   call print_header
   call getarg(1,input)
@@ -40,7 +39,6 @@ program mrci_main
 
   write(*,"(A,f12.4)") "Normal-ordered E0: ", ME0B
   call unnormal_order(me0b,me1b,me2b)
-
 
   call diagonalize(me0b,me1b,me2b,basis)
 end program mrci_main

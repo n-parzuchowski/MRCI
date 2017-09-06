@@ -12,7 +12,7 @@ contains
     type(block_mat_full),allocatable,dimension(:,:) :: z1    
     type(block_mat),allocatable,dimension(:) :: z2
     integer,dimension(:,:) :: basis
-    real(8) :: z0,t3,t4
+    real(8) :: z0,t3,t4,t5,t6
     real(8),allocatable,dimension(:) :: workl,DX,QX,resid,work,workD
     real(8),allocatable,dimension(:,:) :: V,Z
     integer :: lwork,info,ido,ncv,ldv,iparam(11),ipntr(11),dm
@@ -84,7 +84,7 @@ contains
             lworkl, info )
        ! The actual matrix only gets multiplied with the "guess" vector in "matvec_prod" 
        
-       call progress_bar( ii )
+!       call progress_bar( ii )
        ii=ii+1
        
        
@@ -166,24 +166,29 @@ contains
     type(block_mat_full),allocatable,dimension(:,:) :: z1    
     type(block_mat),allocatable,dimension(:) :: z2
     integer,dimension(:,:) :: basis
-    real(8) :: z0
-    integer :: N,II,JJ,XX,Imax,Imin
+    real(8) :: z0,t5,t6,omp_get_wtime
+    integer :: N,II,JJ,XX,Imax,Imin,nthr,omp_get_num_threads,q
     real(8),dimension(N) :: v,w
-
+   
+    !$OMP PARALLEL
+    nthr=omp_get_num_threads()
+    !$OMP END PARALLEL
     w = 0.d0 
-    !$OMP PARALLEL DO PRIVATE(XX,II,JJ),SHARED(N,z0,z1,z2,basis,HAM)
-    do II = 1,N
-       do JJ = II,N
-          XX = bosonic_tp_index(II,JJ,N)
-          HAM(XX) =  mat_elem(II,JJ,basis,z1,z2)
-          w(II) = w(II) +  v(JJ) * HAM(XX)
+    !$OMP PARALLEL DO PRIVATE(XX,II,JJ,q),SHARED(N,z0,z1,z2,basis,HAM,nthr)    
+    do q = 1 , nthr   !!! each thread works on one "q" 
+       do II = q,N,nthr  ! matrix is triangle, so make sure one thread doesn't do all the work. 
+          do JJ = II,N
+             XX = bosonic_tp_index(II,JJ,N)
+             HAM(XX) =  mat_elem(II,JJ,basis,z1,z2)
+             w(II) = w(II) +  v(JJ) * HAM(XX)
+          end do
+          w(II) = w(II) + v(II) * z0   ! zero body offset
+          XX = bosonic_tp_index(II,II,N)
+          HAM(XX) = HAM(XX) + z0 
        end do
-       w(II) = w(II) + v(II) * z0   ! zero body offset
-       XX = bosonic_tp_index(II,II,N)
-       HAM(XX) = HAM(XX) + z0 
     end do
     !$OMP END PARALLEL DO
-    
+
     ! exploit hermiticity 
     do II = 1,N
        do JJ = 1,II-1

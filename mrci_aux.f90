@@ -57,6 +57,8 @@ contains
        write(*,'(A,f6.2,A)') "Memory: ",mem/(1024.**2)," MB"
     else if (mem > 1024. ) then   
        write(*,'(A,f6.2,A)') "Memory: ",mem/(1024.)," KB"
+    else 
+      print*, "Memory: ",mem ," B?"
     end if
            
   end subroutine print_memory
