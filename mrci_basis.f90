@@ -88,7 +88,7 @@ contains
   end subroutine init_sp_basis
 !!!===========================================================
 !!!===========================================================
-  subroutine generate_basis(REF,BASIS)
+  subroutine generate_basis(REF,BASIS,PTarg,MTarg)
     !! this subroutine generates the reference states
     !! based on the one-body density matrix
     implicit none
@@ -97,6 +97,7 @@ contains
     integer,dimension(:,:) :: REF
     integer :: Abody,ix,jx,kx,lx,num_refs,PAR,M,jin,lout,tout
     integer :: q,mout,nin,test,BigT
+    integer,intent(in) :: PTarg,MTarg
     integer,allocatable,dimension(:) :: valid
     integer,dimension(mbas%Abody) :: newSD 
     real(8) :: t1,t2,omp_get_wtime
@@ -129,9 +130,14 @@ contains
     end do
 
     !!!  NOW Systematically go through the references and construct all possible MR-CIS excitations
-    SD_BASIS(1:num_refs,:) = REF 
+    if((MTarg == 0).and.(PTarg==0)) then
+       !!! same quantum numbers as ground state
+       SD_BASIS(1:num_refs,:) = REF 
+       q = num_refs+1
+    else
+       q = 1
+    end if
 
-    q = num_refs+1
     do ix = 1, num_refs
        do jx = 1, Abody 
 
@@ -142,8 +148,8 @@ contains
           do kx = 1, mbas%Ntot
 
              !! first check if this state has the right symmetry 
-             if (mbas%mm(kx) .ne. mout) cycle
-             if (mod(mbas%ll(kx)+lout,2).ne.0) cycle
+             if (mbas%mm(kx) -  mout .ne. MTarg) cycle
+             if (mod(mbas%ll(kx)+lout,2).ne. PTarg) cycle
              if (mbas%tz(kx) .ne. tout) cycle
 
 
@@ -224,7 +230,7 @@ contains
     !! check that nothing is wrong
     do ix = 1,q
        call parity_M_and_T(BASIS(ix,:),mbas,PAR,M,BigT ) 
-       if( ( PAR .ne. 0 ) .or. (M .ne. proj) .or. &
+       if( ( PAR .ne. PTarg ) .or. (M .ne. MTarg) .or. &
             (BigT .ne. (mbas%Aneut-mbas%Aprot)))  then
           STOP "BASIS HAS BAD QUANTUM NUMBERS."
        end if

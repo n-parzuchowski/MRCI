@@ -26,7 +26,7 @@ program mrci_main
   
   call read_Ref_file(ref_file,num_refs,REF,AA,den_file)
 
-  call generate_basis(ref,basis)
+  call generate_basis(ref,basis,0,6)
 
   call generate_tp_basis
 
