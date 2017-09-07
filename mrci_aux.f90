@@ -16,6 +16,8 @@ END TYPE int_vec
 TYPE :: spd    ! single particle discriptor
    integer :: Ntot, Jmax, Lmax,Njjcoup,nMax
    integer :: n,l,j,t,m,Abody,Aneut,Aprot
+   integer :: Ptarg,Mtarg,dTz
+   integer :: Atarg, Ntarg , Ztarg
    real(8) :: e
    integer, allocatable, dimension(:) :: nn, ll, jj, mm,tz,jlab
    type(int_vec),allocatable,dimension(:) :: amap,qmap
@@ -77,7 +79,7 @@ contains
   end subroutine print_total_memory
 !!!===========================================================
 !!!===========================================================
-  subroutine read_input_file(finput,spfile,intfile,reffile,AA,Aprot,Aneut)
+  subroutine read_input_file(finput,spfile,intfile,reffile)
     implicit none
 
     character(200) :: spfile,intfile,finput,reffile 
@@ -105,8 +107,14 @@ contains
     read(45,*) reffile 
 
     read(45,*) !!!Enter number of nucleons (A,Z,N) 
-    read(45,*) AA,Aprot,Aneut
-   
+    read(45,*) mbas%Abody,mbas%Aprot,mbas%Aneut
+
+    read(45,*) !!!Enter target state qnums (par, 2*M, 2*dTz 
+    read(45,*) mbas%ptarg, mbas%mtarg , mbas%dtz
+
+    read(45,*) !!!Enter target state nucleons (A,Z,N) 
+    read(45,*) mbas%atarg, mbas%ztarg , mbas%ntarg
+
     close(45)
     
     call dcgi00()
@@ -114,12 +122,14 @@ contains
   end subroutine read_input_file
 !!!===========================================================
 !!!===========================================================
-  subroutine read_ref_file(reffile,num_refs,REF,AA,denfile)
+  subroutine read_ref_file(reffile,num_refs,REF,denfile)
     implicit none
 
     character(200) :: reffile,denfile
     integer :: ist,num_refs,AA,ii
     integer,allocatable,dimension(:,:) :: ref
+
+    AA = mbas%Abody
 
     reffile = adjustl(reffile)
     open(unit=45,file=trim(INI_DIR)//trim(reffile)) 

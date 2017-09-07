@@ -6,13 +6,13 @@ module mrci_solve
   real(8),allocatable,dimension(:) :: HAM,JTOT_MAT
 contains
 
-  subroutine diagonalize(z0,z1,z2,basis)
+  subroutine diagonalize(z0,z1,z2,basis,Eimsrg)
     implicit none
     
     type(block_mat_full),allocatable,dimension(:,:) :: z1    
     type(block_mat),allocatable,dimension(:) :: z2
     integer,dimension(:,:) :: basis
-    real(8) :: z0,t3,t4,t5,t6
+    real(8) :: z0,t3,t4,t5,t6,Eimsrg
     real(8),allocatable,dimension(:) :: workl,DX,QX,resid,work,workD
     real(8),allocatable,dimension(:,:) :: V,Z
     integer :: lwork,info,ido,ncv,ldv,iparam(11),ipntr(11),dm
@@ -144,8 +144,8 @@ contains
        !       sm = sm + amp1 * Jtot_mat(II,JJ)* amp2
        !    end do
        ! end do
-       write(*,"(3(f12.4),(I4))") DX(AA),DX(AA)-DX(1),sm,nint(sm)
-       write(66,"(3(e25.14))") DX(AA),DX(AA)-DX(1),sm
+       write(*,"(3(f12.4),(I4))") DX(AA),DX(AA)-EIMSRG,sm,nint(sm)
+       write(66,"(3(e25.14))") DX(AA),DX(AA)-EIMSRG,sm
        print*
     end do
     t2 = omp_get_wtime()    

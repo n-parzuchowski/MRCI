@@ -84,11 +84,18 @@ contains
     jbas%Abody = mbas%Abody
     jbas%Aneut = mbas%Aneut
     jbas%Aprot = mbas%Aprot
+    jbas%Ptarg = mbas%Ptarg
+    jbas%Mtarg = mbas%Mtarg
+    jbas%dTz = mbas%dtz
+    jbas%Atarg = mbas%Atarg
+    jbas%Ztarg = mbas%Ztarg
+    jbas%Ntarg = mbas%Ntarg
+
     close(77)
   end subroutine init_sp_basis
 !!!===========================================================
 !!!===========================================================
-  subroutine generate_basis(REF,BASIS,PTarg,MTarg)
+  subroutine generate_basis(REF,BASIS)
     !! this subroutine generates the reference states
     !! based on the one-body density matrix
     implicit none
@@ -97,7 +104,7 @@ contains
     integer,dimension(:,:) :: REF
     integer :: Abody,ix,jx,kx,lx,num_refs,PAR,M,jin,lout,tout
     integer :: q,mout,nin,test,BigT
-    integer,intent(in) :: PTarg,MTarg
+    integer :: PTarg,MTarg
     integer,allocatable,dimension(:) :: valid
     integer,dimension(mbas%Abody) :: newSD 
     real(8) :: t1,t2,omp_get_wtime
@@ -110,7 +117,9 @@ contains
 
     
     Abody = mbas%Abody
-
+    Mtarg = mbas%Mtarg
+    Ptarg = mbas%Ptarg
+    
     num_Refs = size(REF(:,1)) 
     allocate(SD_BASIS(100000,Abody)) 
     write(*,'(A)') "Allocated generic SD basis placeholder"

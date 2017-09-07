@@ -5,7 +5,7 @@ program mrci_main
   integer :: ii,jj,AA,num_refs,Aprot,Aneut ,q,t,lj
   character(200) :: input,ref_file,sp_file,int_file,den_file
   integer,allocatable,dimension(:,:) :: ref,basis
-  real(8) :: x,sm
+  real(8) :: x,sm, Eimsrg
   real(8) :: omp_get_Wtime
   integer :: i,j,k,l,Jtot
   
@@ -15,18 +15,15 @@ program mrci_main
   call getarg(1,input)
   if (trim(input) == '') STOP "NEED INPUT FILE" 
 
-  call read_input_file(input,sp_file,int_file,ref_file,AA,Aprot,Aneut) 
-  mbas%Abody = AA
-  mbas%Aprot = Aprot
-  mbas%Aneut = Aneut
+  call read_input_file(input,sp_file,int_file,ref_file) 
   
   call init_sp_basis(sp_file)
 
   write(*,"(A,I8)") "Number of sp states: ", mbas%ntot
   
-  call read_Ref_file(ref_file,num_refs,REF,AA,den_file)
+  call read_Ref_file(ref_file,num_refs,REF,den_file)
 
-  call generate_basis(ref,basis,0,6)
+  call generate_basis(ref,basis)
 
   call generate_tp_basis
 
@@ -34,24 +31,16 @@ program mrci_main
   call read_me2b(me2b,int_file)
   call read_me1b(me0b,me1b,int_file)
 
- 
   ! get density matrix
   call read_me2b(lambda2b,den_file)
   call read_me1b(x,lambda1b,den_file)
 
-  ! do ii = 1,jbas%Ntot
-  !    do jj = ii, jbas%Ntot
-  !       do Jtot = 0,40,2
-  !          x = get_Jme2b(ii,jj,ii,jj,Jtot,lambda2b)
-  !       end do
-  !    end do
-  ! end do
-  ! stop
   call traces
   write(*,"(A,f12.4)") "Normal-ordered E0: ", ME0B
+  Eimsrg = ME0B
   call unnormal_order(me0b,me1b,me2b)
 
-  call diagonalize(me0b,me1b,me2b,basis)
+  call diagonalize(me0b,me1b,me2b,basis,Eimsrg)
 end program mrci_main
   
 subroutine print_header
