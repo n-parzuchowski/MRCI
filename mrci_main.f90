@@ -39,6 +39,14 @@ program mrci_main
   call read_me2b(lambda2b,den_file)
   call read_me1b(x,lambda1b,den_file)
 
+  ! do ii = 1,jbas%Ntot
+  !    do jj = ii, jbas%Ntot
+  !       do Jtot = 0,40,2
+  !          x = get_Jme2b(ii,jj,ii,jj,Jtot,lambda2b)
+  !       end do
+  !    end do
+  ! end do
+  ! stop
   call traces
   write(*,"(A,f12.4)") "Normal-ordered E0: ", ME0B
   call unnormal_order(me0b,me1b,me2b)

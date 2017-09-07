@@ -120,14 +120,14 @@ contains
 
     type(block_mat),allocatable,dimension(:) :: z2
     integer :: q,a,totme,buflen,ist,bMax,b,endpos,i,j
-    integer :: a1,a2,a1len,a2len,aa,menpos,lenme,ii
+    integer :: a1,a2,a1len,a2len,aa,menpos,lenme,ii,spot
     real(8) :: mem,me,x
     real(8) :: t1,t2,omp_get_wtime
     character(200) :: intfile
     character(20) :: mes,memstr
     character(3) :: units
     character(10) :: fm,fma2,fma1,fme
-    logical :: do_read,get_out
+    logical :: do_read,get_out,found_a1,found_a2
     type(c_ptr) :: buf
     integer(c_int) :: hndle,sz
     character(kind=C_CHAR,len=200) :: buffer
@@ -228,19 +228,39 @@ contains
        get_out = .false. 
        ii = 1
        do a1 = 1 , tp_basis%block(q)%aMax
-          a1len = digets(a1-1)          
-          fma1 = fmtlen(a1len+2)
           do a2 = a1 , tp_basis%block(q)%aMax
-             a2len = digets(a2-1) 
-             fma2 = fmtlen(a2len+2)
 
-
-             if (do_read) buf=gzGets(hndle,buffer,sz)
+             if (do_read) buf=gzGets(hndle,buffer,sz)           
              do_read = .true.
-             
-             !!! all of this is because gzgets sucks in fortran
-             menpos = a1len+a2len+5
 
+             !! break down the string
+             found_a1 = .false. 
+             found_a2 = .false. 
+             spot = 1 
+             do while (.true. )
+                if (found_a1) then
+                   !! find a2
+                   if ( buffer(spot:spot) == " ") then
+                      a2len = spot-3-a1len 
+                      found_a2 = .true.
+                      exit
+                   end if
+                else
+                   !! find a1 
+                   if ( buffer(spot:spot) == " ") then
+                      a1len = spot-1
+                      found_a1 = .true.
+                      spot = spot + 1
+                   end if
+                end if
+                spot = spot + 1
+             end do
+             fma1 = fmtlen(a1len+2)                   
+             fma2 = fmtlen(a2len+2)
+             
+             ! all of this is because gzgets sucks in fortran
+             menpos = a1len+a2len+5
+             
              read( buffer(menpos:menpos+9),'(f10.2)',iostat=ist) me
              if (ist .ne. 0) then
                 
@@ -263,6 +283,8 @@ contains
 
              read(buffer(1:2+a1len),'(I'//trim(fma1)//')',iostat=ist)  a
 
+          
+             
              if(ist .ne. 0) then
                 !! the correct index was not read
                 do_read = .false.
@@ -273,6 +295,8 @@ contains
              read(buffer(3+a1len:4+a1len+a2len),&
                   '(I'//trim(fma2)//')',iostat=ist) aa
 
+           
+             
              if(ist .ne. 0) then
                 !! the correct index was not read
                 do_read = .false.
