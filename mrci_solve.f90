@@ -12,10 +12,10 @@ contains
     type(block_mat_full),allocatable,dimension(:,:) :: z1    
     type(block_mat),allocatable,dimension(:) :: z2
     integer,dimension(:,:) :: basis
-    real(8) :: z0,t3,t4,t5,t6,Eimsrg,x
+    real(8) :: z0,t3,t4,t5,t6,Eimsrg
     real(8),allocatable,dimension(:) :: workl,DX,QX,resid,work,workD
     real(8),allocatable,dimension(:,:) :: V,Z
-    integer :: lwork,info,ido,ncv,ldv,iparam(11),ipntr(11),dm
+    integer :: lwork,info,ido,ncv,ldv,iparam(11),ipntr(11),dm,x
     integer :: ishift,mxiter,nconv,mode,lworkl,ldz,nev,inc,ii,jj,aa
     real(8) :: tol,sigma,sm,Egs,t1,t2,omp_get_wtime,amp1,amp2
     character(1) :: BMAT,HOWMNY 
@@ -39,6 +39,9 @@ contains
     tot_memory = tot_memory + dm*(dm+1)*4.d0
 
     print*
+    allocate(Jtot_mat(dm*(dm+1)/2))
+    Jtot_mat=0.d0
+
     write(*,"(A)") "Allocated J storage" 
     call print_memory(dm*(dm+1)*4.d0)
     tot_memory = tot_memory + dm*(dm+1)*4.d0
