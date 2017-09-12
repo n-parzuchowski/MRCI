@@ -104,7 +104,7 @@ contains
     integer,dimension(:,:) :: REF
     integer :: Abody,ix,jx,kx,lx,num_refs,PAR,M,jin,lout,tout
     integer :: q,mout,nin,test,BigT
-    integer :: PTarg,MTarg
+    integer :: PTarg,MTarg,dTz
     integer,allocatable,dimension(:) :: valid
     integer,dimension(mbas%Abody) :: newSD 
     real(8) :: t1,t2,omp_get_wtime
@@ -119,6 +119,7 @@ contains
     Abody = mbas%Abody
     Mtarg = mbas%Mtarg
     Ptarg = mbas%Ptarg
+    dTz = mbas%dTz
     
     num_Refs = size(REF(:,1)) 
     allocate(SD_BASIS(100000,Abody)) 
@@ -159,7 +160,7 @@ contains
              !! first check if this state has the right symmetry 
              if (mbas%mm(kx) -  mout .ne. MTarg) cycle
              if (mod(mbas%ll(kx)+lout,2).ne. PTarg) cycle
-             if (mbas%tz(kx) .ne. tout) cycle
+             if (mbas%tz(kx) - tout .ne. dTz) cycle
 
 
              !! IF we've made it here, the (kx,-jx) state is a candidate for a 1p1h excitation.
@@ -240,7 +241,7 @@ contains
     do ix = 1,q
        call parity_M_and_T(BASIS(ix,:),mbas,PAR,M,BigT ) 
        if( ( PAR .ne. PTarg ) .or. (M .ne. MTarg) .or. &
-            (BigT .ne. (mbas%Aneut-mbas%Aprot)))  then
+            (BigT .ne. (mbas%Aneut-mbas%Aprot+dTz)))  then
           STOP "BASIS HAS BAD QUANTUM NUMBERS."
        end if
     end do
