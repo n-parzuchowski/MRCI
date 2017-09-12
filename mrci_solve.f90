@@ -12,7 +12,7 @@ contains
     type(block_mat_full),allocatable,dimension(:,:) :: z1    
     type(block_mat),allocatable,dimension(:) :: z2
     integer,dimension(:,:) :: basis
-    real(8) :: z0,t3,t4,t5,t6,Eimsrg
+    real(8) :: z0,t3,t4,t5,t6,Eimsrg,x
     real(8),allocatable,dimension(:) :: workl,DX,QX,resid,work,workD
     real(8),allocatable,dimension(:,:) :: V,Z
     integer :: lwork,info,ido,ncv,ldv,iparam(11),ipntr(11),dm
@@ -38,10 +38,10 @@ contains
     call print_memory(dm*(dm+1)*4.d0)
     tot_memory = tot_memory + dm*(dm+1)*4.d0
 
-    ! print*
-    ! write(*,"(A)") "Allocated J storage" 
-    ! call print_memory(dm**2 *8.d0)
-    ! tot_memory = tot_memory + dm**2*8.d0
+    print*
+    write(*,"(A)") "Allocated J storage" 
+    call print_memory(dm*(dm+1)*4.d0)
+    tot_memory = tot_memory + dm*(dm+1)*4.d0
 
     call print_total_memory
     
@@ -123,13 +123,13 @@ contains
     Egs = DX(1)
 
 
-    ! write(*, "(A)") "Computing J matrix" 
-    ! do II = 1,dm
-    !    do JJ = II,dm
-    !       Jtot_MAT(II,JJ) =  Jtot_elem(II,JJ,basis)
-    !       Jtot_MAT(JJ,II) = Jtot_MAT(II,JJ)
-    !    end do
-    ! end do
+    write(*, "(A)") "Computing J matrix" 
+    do II = 1,dm
+       do JJ = II,dm
+          x = bosonic_tp_index(II,JJ,dm) 
+          Jtot_MAT(x) =  Jtot_elem(II,JJ,basis)          
+       end do
+    end do
 
     print*
     write(*, "(A)") "================================================="
@@ -137,13 +137,25 @@ contains
     write(*, "(A)") "================================================="
     do AA = 1,10
        sm = 0.d0 
-       ! do II = 1, dm
-       !    amp1 = Z(ii,AA)
-       !    do JJ = 1, dm
-       !       amp2 = Z(jj,AA)
-       !       sm = sm + amp1 * Jtot_mat(II,JJ)* amp2
-       !    end do
-       ! end do
+       do II = 1, dm
+          amp1 = Z(ii,AA)
+          do JJ = II, dm
+             amp2 = Z(jj,AA)
+             x = bosonic_tp_index(II,JJ,dm)
+             sm = sm + amp1 * Jtot_mat(x)* amp2
+          end do
+       end do
+
+       do II = 1, dm
+          amp1 = Z(ii,AA)
+          do JJ = 1, II-1
+             amp2 = Z(jj,AA)
+             x = bosonic_tp_index(JJ,II,dm)
+             sm = sm + amp1 * Jtot_mat(x)* amp2
+          end do
+       end do
+
+       
        write(*,"(3(f12.4),(I4))") DX(AA),DX(AA)-EIMSRG,sm,nint(sm)
        write(66,"(3(e25.14))") DX(AA),DX(AA)-EIMSRG,sm
        print*
