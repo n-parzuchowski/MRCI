@@ -17,6 +17,11 @@ contains
        return
     end if
 
+    if (mbas%nn(a) .ne. mbas%nn(b)) then
+       get_Jtot_1b = 0.d0
+       return
+    end if
+
     if (mbas%tz(a) .ne. mbas%tz(b)) then
        get_Jtot_1b = 0.d0
        return
@@ -58,6 +63,12 @@ contains
     jb = mbas%jj(b)
     mb = mbas%mm(b)
 
+    if (mbas%nn(a) .ne. mbas%nn(b)) then
+       jplus = 0.d0
+       return
+    end if
+
+    
     if (mbas%tz(a) .ne. mbas%tz(b)) then
        jplus = 0.d0
        return
@@ -91,6 +102,11 @@ contains
     jb = mbas%jj(b)
     mb = mbas%mm(b)
 
+    if (mbas%nn(a) .ne. mbas%nn(b)) then
+       jminus = 0.d0
+       return
+    end if
+    
     if (mbas%tz(a) .ne. mbas%tz(b)) then
        jminus = 0.d0
        return
@@ -125,6 +141,11 @@ contains
     jb = mbas%jj(b)
     mb = mbas%mm(b)
 
+    if (mbas%nn(a) .ne. mbas%nn(b)) then
+       jz = 0.d0
+       return
+    end if
+    
     if (mbas%mm(a) .ne. mbas%mm(b)) then
        jz = 0.d0
        return

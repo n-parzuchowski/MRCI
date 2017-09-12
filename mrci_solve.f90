@@ -17,7 +17,7 @@ contains
     real(8),allocatable,dimension(:,:) :: V,Z
     integer :: lwork,info,ido,ncv,ldv,iparam(11),ipntr(11),dm,x
     integer :: ishift,mxiter,nconv,mode,lworkl,ldz,nev,inc,ii,jj,aa
-    real(8) :: tol,sigma,sm,Egs,t1,t2,omp_get_wtime,amp1,amp2
+    real(8) :: tol,sigma,sm,Egs,t1,t2,omp_get_wtime,amp1,amp2,dcgi,spin
     character(1) :: BMAT,HOWMNY 
     character(2) :: which
     logical :: rvec
@@ -136,7 +136,7 @@ contains
 
     print*
     write(*, "(A)") "================================================="
-    write(*, "(A)") "  ENERGY       EX ENERGY       SPIN      J(J+1)  " 
+    write(*, "(A)") "  ENERGY       EX ENERGY     J(J+1)      SPIN    " 
     write(*, "(A)") "================================================="
     do AA = 1,10
        sm = 0.d0 
@@ -158,8 +158,11 @@ contains
           end do
        end do
 
+
        
-       write(*,"(3(f12.4),(I4))") DX(AA),DX(AA)-EIMSRG,sm,nint(sm)
+       spin = (sqrt(nint(sm)*4+1.d0 )-1)/2.d0 
+       
+       write(*,"(4(f12.4))") DX(AA),DX(AA)-EIMSRG,sm,spin
        write(66,"(3(e25.14))") DX(AA),DX(AA)-EIMSRG,sm
        print*
     end do
@@ -168,8 +171,6 @@ contains
     deallocate(HAM)
     t2 = omp_get_Wtime() 
     write(*,"(A,f10.1,A,f10.1)") "Time: ", t2-t1, " Total: ", t2-time_Zero 
-
-
     
   end subroutine diagonalize
 
