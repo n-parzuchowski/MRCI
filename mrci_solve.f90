@@ -38,14 +38,7 @@ contains
     call print_memory(dm*(dm+1)*4.d0)
     tot_memory = tot_memory + dm*(dm+1)*4.d0
 
-    print*
-    allocate(Jtot_mat(dm*(dm+1)/2))
-    Jtot_mat=0.d0
-
-    write(*,"(A)") "Allocated J storage" 
-    call print_memory(dm*(dm+1)*4.d0)
-    tot_memory = tot_memory + dm*(dm+1)*4.d0
-
+    
     call print_total_memory
     
     nev = 10 ! I only care about the ground state right now. 
@@ -126,13 +119,30 @@ contains
     Egs = DX(1)
 
 
+
+    deallocate(HAM)
+    write(*,"(A)") "Deallocated Hamiltonian Storage"
+    print*
+
+    allocate(Jtot_mat(dm*(dm+1)/2))
+    Jtot_mat=0.d0
+
+    write(*,"(A)") "Allocated J storage" 
+    call print_memory(dm*(dm+1)*4.d0)
+
+    call print_total_memory
+    
+
+    
     write(*, "(A)") "Computing J matrix" 
+    !$OMP PARALLEL DO PRIVATE(II,JJ,x) SHARED(basis,Jtot_MAT,dm)
     do II = 1,dm
        do JJ = II,dm
           x = bosonic_tp_index(II,JJ,dm) 
           Jtot_MAT(x) =  Jtot_elem(II,JJ,basis)          
        end do
     end do
+    !$OMP END PARALLEL DO
 
     print*
     write(*, "(A)") "================================================="
@@ -168,7 +178,6 @@ contains
     end do
     t2 = omp_get_wtime()    
     print*, "TIME: ", t2-t1
-    deallocate(HAM)
     t2 = omp_get_Wtime() 
     write(*,"(A,f10.1,A,f10.1)") "Time: ", t2-t1, " Total: ", t2-time_Zero 
     
