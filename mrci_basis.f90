@@ -140,7 +140,7 @@ contains
     end do
 
     !!!  NOW Systematically go through the references and construct all possible MR-CIS excitations
-    if((MTarg == 0).and.(PTarg==0)) then
+    if((MTarg == 0).and.(PTarg==0).and.(dTz==0)) then
        !!! same quantum numbers as ground state
        SD_BASIS(1:num_refs,:) = REF 
        q = num_refs+1
