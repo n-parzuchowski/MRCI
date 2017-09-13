@@ -86,18 +86,49 @@ contains
     jbas%Aprot = mbas%Aprot
     jbas%Ptarg = mbas%Ptarg
     jbas%Mtarg = mbas%Mtarg
-    jbas%dTz = mbas%dtz
     jbas%Atarg = mbas%Atarg
     jbas%Ztarg = mbas%Ztarg
     jbas%Ntarg = mbas%Ntarg
 
+    jbas%dTz = (jbas%Ntarg - jbas%Ztarg) - &
+         ( jbas%Aneut - jbas%Aprot) 
+    mbas%dTZ = jbas%dTz
+    
     close(77)
   end subroutine init_sp_basis
 !!!===========================================================
 !!!===========================================================
   subroutine generate_basis(REF,BASIS)
-    !! this subroutine generates the reference states
-    !! based on the one-body density matrix
+    !! this subroutine generates the SD basis from 
+    !! the supplied reference space for the same nucleus.
+    implicit none
+    integer,allocatable,dimension(:,:) :: BASIS
+    integer,dimension(:,:) :: REF
+    integer :: dA 
+
+    write(*,'(A)')  '===================================================='
+    write(*,'(A)')  'GENERATING SD BASIS'
+    write(*,*)
+
+    
+    dA = jbas%Atarg - jbas%Abody
+
+    if (dA == 0 ) then
+       call PC_generate_basis(REF,BASIS)
+    else if (dA == 1 ) then
+       call PA_generate_basis(REF,BASIS)
+    else if (dA == -1 ) then
+       call PR_generate_basis(REF,BASIS)
+    else
+       write(*,*) "REQUESTED TARGET NOT YET IMPLEMENTED"
+       STOP "TARGET NUCLEUS IS TOO DIFFERENT FROM REFERENCE"
+    end if
+  end subroutine generate_basis  
+!!!===========================================================
+!!!===========================================================
+  subroutine PC_generate_basis(REF,BASIS)
+    !! this subroutine generates the SD basis from 
+    !! the supplied reference space for the same nucleus.
     implicit none
 
     integer,allocatable,dimension(:,:) :: SD_BASIS,BASIS
@@ -110,11 +141,7 @@ contains
     real(8) :: t1,t2,omp_get_wtime
     logical :: present
 
-    t1=omp_get_wtime()
-    write(*,'(A)')  '===================================================='
-    write(*,'(A)')  'GENERATING SD BASIS'
-    write(*,*)
-
+    t1=omp_get_wtime()    
     
     Abody = mbas%Abody
     Mtarg = mbas%Mtarg
@@ -123,6 +150,7 @@ contains
     
     num_Refs = size(REF(:,1)) 
     allocate(SD_BASIS(100000,Abody)) 
+    SD_Basis = 0
     write(*,'(A)') "Allocated generic SD basis placeholder"
     call print_memory(100000*Abody*4.d0)
     tot_memory = tot_memory + 100000*Abody*4.d0
@@ -247,7 +275,282 @@ contains
     end do
     t2=omp_get_wtime()
     write(*,"(A,f6.1,A,f10.1)") "Time: ", t2-t1, " Total: ", t2-time_Zero 
-  end subroutine generate_basis
+  end subroutine PC_generate_basis
+!!!===========================================================
+!!!===========================================================
+  subroutine PR_generate_basis(REF,BASIS)
+    !! this subroutine generates the particle-removed basis 
+    !! based on the supplied reference space
+    implicit none
+
+    integer,allocatable,dimension(:,:) :: SD_BASIS,BASIS
+    integer,dimension(:,:) :: REF
+    integer :: Abody,ix,jx,kx,lx,num_refs,PAR,M,jin,lout,tout
+    integer :: q,mout,nin,test,BigT
+    integer :: PTarg,MTarg,dTz
+    integer,allocatable,dimension(:) :: valid
+    integer,dimension(mbas%Abody-1) :: newSD 
+    real(8) :: t1,t2,omp_get_wtime
+    logical :: present
+
+    t1=omp_get_wtime()
+    
+    Abody = mbas%Abody
+    Mtarg = mbas%Mtarg
+    Ptarg = mbas%Ptarg
+    dTz = mbas%dTz
+    
+    num_Refs = size(REF(:,1))
+    allocate(SD_BASIS(100000,Abody-1))
+    SD_Basis = 0
+    write(*,'(A)') "Allocated generic SD basis placeholder"
+    call print_memory(100000*(Abody-1)*4.d0)
+    tot_memory = tot_memory + 100000*(Abody-1)*4.d0
+    call print_total_memory
+    
+    
+    do ix = 1, num_Refs
+       call parity_M_and_T(REF(ix,:),mbas,PAR,M,BigT ) 
+       if( ( PAR .ne. 0 ) .or. (M .ne. proj) .or.&
+            (BigT .ne. (mbas%Aneut-mbas%Aprot)))  then
+          print*, ix,BigT,mbas%Aneut-mbas%Aprot,PAR,M
+          STOP "REFERENCES HAVE BAD QUANTUM NUMBERS."
+       end if
+       call sort_SD(REF(ix,:))
+    end do
+
+    !!!  NOW Systematically go through the references and construct all possible MR-CIS excitations
+    q = 1
+       
+    do ix = 1, num_refs
+       
+       do kx = 1, mbas%Ntot
+          
+          !! first check if this 1h state has the right symmetry 
+          if (-1*mbas%mm(kx) .ne. MTarg) cycle
+          if (mod(mbas%ll(kx),2).ne. PTarg) cycle
+          if (-1*mbas%tz(kx) .ne. dTz) cycle
+          
+          !! IF we've made it here, the (+kx) state is a candidate for a 1h excitation.
+          !! make sure kx isn't already in the current reference
+          nin = mbas%nn(kx)
+          jin = mbas%jj(kx)
+
+             
+          present = .false. 
+          do lx = 1, Abody
+             
+             if (ref(ix,lx) .ne. kx) cycle
+             
+             !if we're here, this means that this state is already in the SD
+             present = .true.
+             exit
+          end do
+          
+          if (.not. present) cycle ! don't count this state if it's not in the SD 
+
+          
+          !! if we're here, that means we've found a particle state that is in the current SD                                                                  
+          newSD(1:lx-1) = REF(ix,1:lx-1)
+          newSD(lx:Abody-1) = REF(ix,lx+1:Abody)
+          
+          call sort_SD(newSD)             
+  
+          ! check that this SD isn't already in SD_Basis
+
+          present = .false. 
+          do lx = 1, q-1                
+             test = sum( abs( newSD - SD_Basis(lx,:)) )
+             if (test == 0 ) then                
+                present = .true.
+                exit
+             end if
+          end do
+             
+          if (present) cycle
+
+          !! if we've made it here, we have a shiny new slater determinant
+          
+          SD_Basis(q,: )= newSD
+          q = q +1
+                       
+       end do
+    end do
+
+    !! pack 'er up
+    q= q-1
+    allocate(BASIS(q,Abody-1))
+    write(*,'(A)')  "Allocated unique SD basis descriptor"
+    call print_memory(q*(Abody-1)*4.d0)
+    tot_memory = tot_memory + q*(Abody-1)*4.d0
+    call print_total_memory
+
+    BASIS = SD_BASIS(1:q,:)
+
+    deallocate(SD_BASIS)
+    write(*,'(A)')  "Deallocated generic SD basis placeholder"
+    tot_memory = tot_memory - 100000*(Abody-1)*4.d0
+    call print_total_memory
+
+    write(*,'(A)')  '===================================================='
+    write(*,'(A)')  'SLATER DETERMINANT BASIS GENERATED'
+    write(*,'(I5,A)')   q, ' BASIS VECTORS'
+
+    write(*,'(A)')  "In order to store a matrix in this basis:"
+    call print_memory(dfloat(q)*dfloat(q+1)*4.d0)
+    
+    
+    !! check that nothing is wrong
+    do ix = 1,q
+       call parity_M_and_T(BASIS(ix,:),mbas,PAR,M,BigT ) 
+       if( ( PAR .ne. PTarg ) .or. (M .ne. MTarg) .or. &
+            (BigT .ne. (mbas%NTarg-mbas%Ztarg)))  then
+          print*, PAR,M,BigT
+          STOP "BASIS HAS BAD QUANTUM NUMBERS."
+       end if
+    end do
+    t2=omp_get_wtime()
+    write(*,"(A,f6.1,A,f10.1)") "Time: ", t2-t1, " Total: ", t2-time_Zero 
+  end subroutine PR_generate_basis
+!!!===========================================================
+!!!===========================================================
+  subroutine PA_generate_basis(REF,BASIS)
+    !! this subroutine generates the particle-attached basis 
+    !! based on the supplied reference space
+    implicit none
+
+    integer,allocatable,dimension(:,:) :: SD_BASIS,BASIS
+    integer,dimension(:,:) :: REF
+    integer :: Abody,ix,jx,kx,lx,num_refs,PAR,M,jin,lout,tout
+    integer :: q,mout,nin,test,BigT
+    integer :: PTarg,MTarg,dTz
+    integer,allocatable,dimension(:) :: valid
+    integer,dimension(mbas%Abody+1) :: newSD 
+    real(8) :: t1,t2,omp_get_wtime
+    logical :: present
+
+    t1=omp_get_wtime()
+    
+    Abody = mbas%Abody
+    Mtarg = mbas%Mtarg
+    Ptarg = mbas%Ptarg
+    dTz = mbas%dTz
+    
+    num_Refs = size(REF(:,1))
+    allocate(SD_BASIS(100000,Abody+1)) 
+    SD_Basis = 0
+    write(*,'(A)') "Allocated generic SD basis placeholder"
+    call print_memory(100000*(Abody+1)*4.d0)
+    tot_memory = tot_memory + 100000*(Abody+1)*4.d0
+    call print_total_memory
+    
+    
+    do ix = 1, num_Refs
+       call parity_M_and_T(REF(ix,:),mbas,PAR,M,BigT ) 
+       if( ( PAR .ne. 0 ) .or. (M .ne. proj) .or.&
+            (BigT .ne. (mbas%Aneut-mbas%Aprot)))  then
+          print*, ix,BigT,mbas%Aneut-mbas%Aprot,PAR,M
+          STOP "REFERENCES HAVE BAD QUANTUM NUMBERS."
+       end if
+       call sort_SD(REF(ix,:))
+    end do
+
+    !!!  NOW Systematically go through the references and construct all possible MR-CIS excitations
+    q = 1
+       
+    do ix = 1, num_refs
+       
+       do kx = 1, mbas%Ntot
+          
+          !! first check if this state has the right symmetry 
+          if (mbas%mm(kx) .ne. MTarg) cycle
+          if (mod(mbas%ll(kx),2).ne. PTarg) cycle
+          if (mbas%tz(kx) .ne. dTz) cycle
+          
+
+          !! IF we've made it here, the (+kx) state is a candidate for a 1p excitation.
+          !! make sure kx isn't already in the current reference
+          nin = mbas%nn(kx)
+          jin = mbas%jj(kx)
+
+             
+          present = .false. 
+          do lx = 1, Abody
+             
+             if (ref(ix,lx) .ne. kx) cycle
+             
+             !if we're here, this means that this state is already in the SD
+             present = .true.
+             exit
+          end do
+          
+          if (present) cycle ! don't count this state if it's already in the SD 
+
+          
+          !! if we're here, that means we've found a particle state that isn't in the current SD                                                                  
+          newSD(1:Abody) = REF(ix,:)
+          newSD(Abody+1) = kx
+          
+          call sort_SD(newSD) 
+
+          ! check that this SD isn't already in SD_Basis
+
+          present = .false. 
+          do lx = 1, q-1                
+             test = sum( abs( newSD - SD_Basis(lx,:)) )
+             if (test == 0 ) then                
+                present = .true.
+                exit
+             end if
+          end do
+
+    
+             
+          if (present) cycle
+
+          !! if we've made it here, we have a shiny new slater determinant
+          
+          SD_Basis(q,: )= newSD
+          q = q +1
+                       
+       end do
+    end do
+
+    !! pack 'er up
+    q= q-1
+    allocate(BASIS(q,Abody+1))
+    write(*,'(A)')  "Allocated unique SD basis descriptor"
+    call print_memory(q*(Abody+1)*4.d0)
+    tot_memory = tot_memory + q*(Abody+1)*4.d0
+    call print_total_memory
+
+    BASIS = SD_BASIS(1:q,:)
+
+    deallocate(SD_BASIS)
+    write(*,'(A)')  "Deallocated generic SD basis placeholder"
+    tot_memory = tot_memory - 100000*(Abody+1)*4.d0
+    call print_total_memory
+
+    write(*,'(A)')  '===================================================='
+    write(*,'(A)')  'SLATER DETERMINANT BASIS GENERATED'
+    write(*,'(I5,A)')   q, ' BASIS VECTORS'
+
+    write(*,'(A)')  "In order to store a matrix in this basis:"
+    call print_memory(dfloat(q)*dfloat(q+1)*4.d0)
+    
+    
+    !! check that nothing is wrong
+    do ix = 1,q
+       call parity_M_and_T(BASIS(ix,:),mbas,PAR,M,BigT ) 
+       if( ( PAR .ne. PTarg ) .or. (M .ne. MTarg) .or. &
+            (BigT .ne. (mbas%Ntarg-mbas%Ztarg)))  then
+          print*, M,PAR,BigT
+          STOP "BASIS HAS BAD QUANTUM NUMBERS."
+       end if
+    end do
+    t2=omp_get_wtime()
+    write(*,"(A,f6.1,A,f10.1)") "Time: ", t2-t1, " Total: ", t2-time_Zero 
+  end subroutine PA_generate_basis
 !!!===========================================================
 !!!===========================================================
   subroutine sort_SD(ar)

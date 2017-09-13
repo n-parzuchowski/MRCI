@@ -106,16 +106,23 @@ contains
     read(45,*) !Enter REF file
     read(45,*) reffile 
 
-    read(45,*) !!!Enter number of nucleons (A,Z,N) 
-    read(45,*) mbas%Abody,mbas%Aprot,mbas%Aneut
+    read(45,*) !!!Enter number of nucleons (Z,N) 
+    read(45,*) mbas%Aprot,mbas%Aneut
+    mbas%Abody = mbas%Aneut + mbas%Aprot
+    read(45,*) !!!Enter target state qnums (par, 2*M)
+    read(45,*) mbas%ptarg, mbas%mtarg
 
-    read(45,*) !!!Enter target state qnums (par, 2*M, 2*dTz 
-    read(45,*) mbas%ptarg, mbas%mtarg , mbas%dtz
-
-    read(45,*) !!!Enter target state nucleons (A,Z,N) 
-    read(45,*) mbas%atarg, mbas%ztarg , mbas%ntarg
-
+    read(45,*) !!!Enter target state nucleons (Z,N) 
+    read(45,*) mbas%ztarg , mbas%ntarg
+    mbas%Atarg = mbas%Ztarg + mbas%Ntarg
     close(45)
+
+    if (mod(mbas%Atarg+ mbas%mtarg,2)==1) then
+       write(*,*)
+       write(*,"(A)") "Input file: IMPOSSIBLE PROJECTION QUANTUM NUMBER"
+       write(*,"(A)") "shifting M up by half-integer"
+       mbas%mtarg = mbas%mtarg + 1
+    end if
     
     call dcgi00()
 

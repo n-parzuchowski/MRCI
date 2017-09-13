@@ -262,8 +262,8 @@ contains
     type(block_mat_full),allocatable,dimension(:,:) :: z1    
     type(block_mat),allocatable,dimension(:) :: z2
     integer,dimension(:,:) :: basis
-    integer,dimension(jbas%Abody) ::  bra,ket
-    integer,dimension(jbas%Abody-1) ::  smmed
+    integer,dimension(jbas%Atarg) ::  bra,ket
+    integer,dimension(jbas%Atarg-1) ::  smmed
     integer,dimension(mbas%Ntot) :: brabit,ketbit,diffbit
     real(8) :: sm 
     
@@ -273,14 +273,14 @@ contains
     if (II == JJ ) then
        bra = basis(II,:)       
        sm = 0.d0 
-       do q = 1, jbas%Abody
+       do q = 1, jbas%Atarg
           sm_i = bra(q) 
           sm = sm + get_me1b(sm_i,sm_i,z1)
        end do
 
-       do q = 1, jbas%Abody
+       do q = 1, jbas%Atarg
           sm_i = bra(q) 
-          do q1 = q+1,jbas%Abody
+          do q1 = q+1,jbas%Atarg
              sm_j = bra(q1)
              sm = sm + get_me2b(sm_i,sm_j,sm_i,sm_j,z2)
           end do
@@ -295,7 +295,7 @@ contains
        bra = basis(II,:)
        ket = basis(JJ,:)
 
-       do q = 1, jbas%Abody
+       do q = 1, jbas%Atarg
           brabit(bra(q)) = 1
           ketbit(ket(q)) = 1
           diffbit = brabit - ketbit
@@ -319,15 +319,15 @@ contains
 
           !! find phase of ME
           phase = 1
-          do q = 1, jbas%Abody
+          do q = 1, jbas%Atarg
              if (bra(q) == bra_a)then
                 smmed(1:q-1) = bra(1:q-1)
-                smmed(q:jbas%Abody-1) = bra(q+1:jbas%Abody) 
+                smmed(q:jbas%Atarg-1) = bra(q+1:jbas%Atarg) 
                 phase = phase *(-1)**(q-1)
                 exit
              end if
           end do 
-          do q = 1, jbas%Abody
+          do q = 1, jbas%Atarg
              if (ket(q) == ket_c)then
                 phase = phase *(-1)**(q-1)
                 exit
@@ -335,7 +335,7 @@ contains
           end do
 
           sm = 0.d0
-          do q = 1, jbas%Abody-1
+          do q = 1, jbas%Atarg-1
              sm_i = smmed(q) 
              sm = sm + get_me2b(bra_a,sm_i,ket_c,sm_i,z2)
           end do
@@ -373,14 +373,14 @@ contains
 
 
           !! get the phase
-          do q = 1, jbas%Abody
+          do q = 1, jbas%Atarg
              if (ket(q) == ket_c)then
                 phase = phase *(-1)**(q-1)
                 exit
              end if
           end do
 
-          do q = 1, jbas%Abody
+          do q = 1, jbas%Atarg
              if (ket(q) == ket_d)then
                 phase = phase *(-1)**(q)
                 exit
@@ -392,14 +392,14 @@ contains
           end if
           
 
-          do q = 1, jbas%Abody
+          do q = 1, jbas%Atarg
              if (bra(q) == bra_a)then
                 phase = phase *(-1)**(q-1)
                 exit
              end if
           end do
 
-          do q = 1, jbas%Abody
+          do q = 1, jbas%Atarg
              if (bra(q) == bra_b)then
                 phase = phase *(-1)**(q)
                 exit
