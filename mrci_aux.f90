@@ -44,7 +44,6 @@ END type tpd
 type(spd),public :: jbas,mbas
 type(tpd),public :: tp_basis 
 character(500) :: ME_DIR,SP_DIR,INI_DIR,OUTPUT_DIR
-integer,public :: proj !!total projection
 real(8) :: tot_memory,time_Zero
 contains
 
@@ -79,10 +78,10 @@ contains
   end subroutine print_total_memory
 !!!===========================================================
 !!!===========================================================
-  subroutine read_input_file(finput,spfile,intfile,reffile)
+  subroutine read_input_file(finput,spfile,intfile,denfile,reffile)
     implicit none
 
-    character(200) :: spfile,intfile,finput,reffile 
+    character(200) :: spfile,intfile,finput,reffile,denfile
     integer :: AA,Aprot,Aneut
 
     call getenv("MRCI_SP_FILES",SP_DIR)
@@ -97,24 +96,32 @@ contains
     finput = adjustl(finput)
     open(unit=45,file=trim(INI_DIR)//trim(finput)) 
 
-    read(45,*) !!! Enter SP filee
+    read(45,*) !!!Enter number of nucleons (Z,N) 
+    read(45,*) mbas%Aprot,mbas%Aneut
+    mbas%Abody = mbas%Aneut + mbas%Aprot
+
+    read(45,*) !!!Enter target state nucleons (Z,N) 
+    read(45,*) mbas%ztarg , mbas%ntarg
+    mbas%Atarg = mbas%Ztarg + mbas%Ntarg
+
+    read(45,*) !!!Enter Parity (0,1) 
+    read(45,*) mbas%ptarg
+
+    read(45,*) !!! Enter SP file
     read(45,*) spfile
     
     read(45,*) !!! Enter INT file
     read(45,*) intfile
 
+    read(45,*) !!! Enter INT file
+    read(45,*) denfile
+    
     read(45,*) !Enter REF file
     read(45,*) reffile 
 
-    read(45,*) !!!Enter number of nucleons (Z,N) 
-    read(45,*) mbas%Aprot,mbas%Aneut
-    mbas%Abody = mbas%Aneut + mbas%Aprot
-    read(45,*) !!!Enter Parity (0,1) 
-    read(45,*) mbas%ptarg
 
-    read(45,*) !!!Enter target state nucleons (Z,N) 
-    read(45,*) mbas%ztarg , mbas%ntarg
-    mbas%Atarg = mbas%Ztarg + mbas%Ntarg
+
+
     close(45)
 
     mbas%mtarg = mod(mbas%Atarg,2)
@@ -124,23 +131,17 @@ contains
   end subroutine read_input_file
 !!!===========================================================
 !!!===========================================================
-  subroutine read_ref_file(reffile,num_refs,REF,denfile)
+  subroutine read_ref_file(reffile,num_refs,REF)
     implicit none
 
-    character(200) :: reffile,denfile
+    character(200) :: reffile
     integer :: ist,num_refs,AA,ii
     integer,allocatable,dimension(:,:) :: ref
 
     AA = mbas%Abody
 
     reffile = adjustl(reffile)
-    open(unit=45,file=trim(INI_DIR)//trim(reffile)) 
-
-    read(45,*) !! Enter number of refs
-    read(45,*) denfile
-    
-    read(45,*) !! Enter 2*projection
-    read(45,*) proj
+    open(unit=45,file=trim(INI_DIR)//trim(reffile))     
     
     read(45,*) !! Enter number of refs
     read(45,*) num_refs

@@ -174,7 +174,7 @@ contains
     
     do ix = 1, num_Refs
        call parity_M_and_T(REF(ix,:),mbas,PAR,M,BigT ) 
-       if( ( PAR .ne. 0 ) .or. (M .ne. proj) .or.&
+       if( ( PAR .ne. 0 ) .or. (M .ne. 0) .or.&
             (BigT .ne. (mbas%Aneut-mbas%Aprot)))  then
           print*, ix,BigT,mbas%Aneut-mbas%Aprot,PAR,M
           STOP "REFERENCES HAVE BAD QUANTUM NUMBERS."
@@ -326,7 +326,7 @@ contains
     
     do ix = 1, num_Refs
        call parity_M_and_T(REF(ix,:),mbas,PAR,M,BigT ) 
-       if( ( PAR .ne. 0 ) .or. (M .ne. proj) .or.&
+       if( ( PAR .ne. 0 ) .or. (M .ne. 0) .or.&
             (BigT .ne. (mbas%Aneut-mbas%Aprot)))  then
           print*, ix,BigT,mbas%Aneut-mbas%Aprot,PAR,M
           STOP "REFERENCES HAVE BAD QUANTUM NUMBERS."
@@ -551,7 +551,7 @@ contains
     
     do ix = 1, num_Refs
        call parity_M_and_T(REF(ix,:),mbas,PAR,M,BigT ) 
-       if( ( PAR .ne. 0 ) .or. (M .ne. proj) .or.&
+       if( ( PAR .ne. 0 ) .or. (M .ne. 0) .or.&
             (BigT .ne. (mbas%Aneut-mbas%Aprot)))  then
           print*, ix,BigT,mbas%Aneut-mbas%Aprot,PAR,M
           STOP "REFERENCES HAVE BAD QUANTUM NUMBERS."

@@ -15,13 +15,13 @@ program mrci_main
   call getarg(1,input)
   if (trim(input) == '') STOP "NEED INPUT FILE" 
 
-  call read_input_file(input,sp_file,int_file,ref_file) 
+  call read_input_file(input,sp_file,int_file,den_file,ref_file) 
   
   call init_sp_basis(sp_file)
 
   write(*,"(A,I8)") "Number of sp states: ", mbas%ntot
   
-  call read_Ref_file(ref_file,num_refs,REF,den_file)
+  call read_Ref_file(ref_file,num_refs,REF)
 
   call generate_basis(ref,basis)
 
