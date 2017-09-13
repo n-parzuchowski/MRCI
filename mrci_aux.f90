@@ -59,8 +59,8 @@ contains
        write(*,'(A,f6.2,A)') "Memory: ",mem/(1024.**2)," MB"
     else if (mem > 1024. ) then   
        write(*,'(A,f6.2,A)') "Memory: ",mem/(1024.)," KB"
-    else 
-      print*, "Memory: ",mem ," B?"
+    else
+       write(*,'(A,f6.2,A)') "Memory: ",mem," B"
     end if
            
   end subroutine print_memory
@@ -109,20 +109,15 @@ contains
     read(45,*) !!!Enter number of nucleons (Z,N) 
     read(45,*) mbas%Aprot,mbas%Aneut
     mbas%Abody = mbas%Aneut + mbas%Aprot
-    read(45,*) !!!Enter target state qnums (par, 2*M)
-    read(45,*) mbas%ptarg, mbas%mtarg
+    read(45,*) !!!Enter Parity (0,1) 
+    read(45,*) mbas%ptarg
 
     read(45,*) !!!Enter target state nucleons (Z,N) 
     read(45,*) mbas%ztarg , mbas%ntarg
     mbas%Atarg = mbas%Ztarg + mbas%Ntarg
     close(45)
 
-    if (mod(mbas%Atarg+ mbas%mtarg,2)==1) then
-       write(*,*)
-       write(*,"(A)") "Input file: IMPOSSIBLE PROJECTION QUANTUM NUMBER"
-       write(*,"(A)") "shifting M up by half-integer"
-       mbas%mtarg = mbas%mtarg + 1
-    end if
+    mbas%mtarg = mod(mbas%Atarg,2)
     
     call dcgi00()
 

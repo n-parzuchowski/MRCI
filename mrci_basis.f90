@@ -126,7 +126,7 @@ contains
   end subroutine generate_basis  
 !!!===========================================================
 !!!===========================================================
-  subroutine PC_generate_basis(REF,BASIS)
+  subroutine PC_generate_basis(REF,BASIS,Mx,Px,Tx)
     !! this subroutine generates the SD basis from 
     !! the supplied reference space for the same nucleus.
     implicit none
@@ -136,18 +136,33 @@ contains
     integer :: Abody,ix,jx,kx,lx,num_refs,PAR,M,jin,lout,tout
     integer :: q,mout,nin,test,BigT
     integer :: PTarg,MTarg,dTz
+    integer,optional :: Mx,Px,Tx 
     integer,allocatable,dimension(:) :: valid
     integer,dimension(mbas%Abody) :: newSD 
     real(8) :: t1,t2,omp_get_wtime
-    logical :: present
+    logical :: pres
 
     t1=omp_get_wtime()    
     
     Abody = mbas%Abody
-    Mtarg = mbas%Mtarg
-    Ptarg = mbas%Ptarg
-    dTz = mbas%dTz
-    
+
+    if (present(Mx) ) then
+       Mtarg = Mx
+    else
+       Mtarg = mbas%Mtarg
+    end if
+    if (present(Mx) ) then
+       Ptarg = Px
+    else
+       Ptarg = mbas%Ptarg
+    end if
+
+    if (present(Tx) ) then
+       dTz = Tx
+    else
+       dTz = mbas%dTz
+    end if
+       
     num_Refs = size(REF(:,1)) 
     allocate(SD_BASIS(100000,Abody)) 
     SD_Basis = 0
@@ -197,17 +212,17 @@ contains
              jin = mbas%jj(kx)
 
              
-             present = .false. 
+             pres = .false. 
              do lx = 1, Abody
        
                 if (ref(ix,lx) .ne. kx) cycle
 
                 !if we're here, this means that this state is already in the SD
-                present = .true.
+                pres = .true.
                 exit
              end do
 
-             if (present) cycle ! don't count this state if it's already in the SD 
+             if (pres) cycle ! don't count this state if it's already in the SD 
 
              !! if we're here, that means we've found a particle state that isn't in the current SD                                                                  
              newSD = REF(ix,:)
@@ -219,18 +234,18 @@ contains
 
              ! check that this SD isn't already in SD_Basis
 
-             present = .false. 
+             pres = .false. 
              do lx = 1, q-1                
                 test = sum( abs( newSD - SD_Basis(lx,:)) )
                 if (test == 0 ) then                
-                   present = .true.
+                   pres = .true.
                    exit
                 end if
              end do
 
     
              
-             if (present) cycle
+             if (pres) cycle
 
              !! if we've made it here, we have a shiny new slater determinant
              
@@ -283,15 +298,15 @@ contains
     !! based on the supplied reference space
     implicit none
 
-    integer,allocatable,dimension(:,:) :: SD_BASIS,BASIS
+    integer,allocatable,dimension(:,:) :: SD_BASIS,BASIS,tmp_ref
     integer,dimension(:,:) :: REF
     integer :: Abody,ix,jx,kx,lx,num_refs,PAR,M,jin,lout,tout
     integer :: q,mout,nin,test,BigT
-    integer :: PTarg,MTarg,dTz
+    integer :: PTarg,MTarg,dTz,Mx,Tx,Px,num_tmp
     integer,allocatable,dimension(:) :: valid
     integer,dimension(mbas%Abody-1) :: newSD 
     real(8) :: t1,t2,omp_get_wtime
-    logical :: present
+    logical :: pres
 
     t1=omp_get_wtime()
     
@@ -337,17 +352,17 @@ contains
           jin = mbas%jj(kx)
 
              
-          present = .false. 
+          pres = .false. 
           do lx = 1, Abody
              
              if (ref(ix,lx) .ne. kx) cycle
              
              !if we're here, this means that this state is already in the SD
-             present = .true.
+             pres = .true.
              exit
           end do
           
-          if (.not. present) cycle ! don't count this state if it's not in the SD 
+          if (.not. pres) cycle ! don't count this state if it's not in the SD 
 
           
           !! if we're here, that means we've found a particle state that is in the current SD                                                                  
@@ -358,16 +373,16 @@ contains
   
           ! check that this SD isn't already in SD_Basis
 
-          present = .false. 
+          pres = .false. 
           do lx = 1, q-1                
              test = sum( abs( newSD - SD_Basis(lx,:)) )
              if (test == 0 ) then                
-                present = .true.
+                pres = .true.
                 exit
              end if
           end do
              
-          if (present) cycle
+          if (pres) cycle
 
           !! if we've made it here, we have a shiny new slater determinant
           
@@ -377,6 +392,95 @@ contains
        end do
     end do
 
+ !! Next, we repeatedly generate Abody sd basis, with different quantum numbers.
+    !! then we repeat the procedure above using those as the "reference"
+    !! this constructs the 2p1h part of the basis.
+    
+    do Mx = 0 , maxval(mbas%mm)+1,2
+       do Px = 0 , 1
+          do Tx = -2 , 2 , 2
+          
+             call PC_generate_basis(REF,tmp_REF,Mx,Px,Tx)  
+
+             !! okay, now we should have a nice basis of
+             !! NpNh states.
+
+             !! Next, we would like to add one particle, in the same way
+             !! we did with the real references. 
+
+             num_tmp = size(tmp_REF(:,1)) 
+             
+             do ix = 1, num_tmp
+       
+                do kx = 1, mbas%Ntot
+
+                   !! first check if this state has the right symmetry 
+                   if (Mx-mbas%mm(kx) .ne. MTarg) cycle
+                   if (mod(mbas%ll(kx)+Px,2).ne. PTarg) cycle
+                   if (Tx-mbas%tz(kx) .ne. dTz) cycle
+
+
+                   !! IF we've made it here, the (+kx) state is a candidate for a 1p excitation.
+                   !! make sure kx isn't already in the current reference
+                   nin = mbas%nn(kx)
+                   jin = mbas%jj(kx)
+
+
+                   pres = .false. 
+                   do lx = 1, Abody
+
+                      if (tmp_ref(ix,lx) .ne. kx) cycle
+
+                      !if we're here, this means that this state is already in the reference SD
+                      pres = .true.
+                      exit
+                   end do
+
+                   if (.not. pres) cycle ! don't count this state if it's not already in the SD 
+
+
+                   !! if we're here, that means we've found a particle state that isn't in the current SD                                                                  
+
+                   newSD(1:lx-1) = tmp_REF(ix,1:lx-1)
+                   newSD(lx:Abody-1) = tmp_REF(ix,lx+1:Abody)
+
+                   
+                   call sort_SD(newSD) 
+
+                   ! check that this SD isn't already in SD_Basis
+
+                   pres = .false. 
+                   do lx = 1, q-1                
+                      test = sum( abs( newSD - SD_Basis(lx,:)) )
+                      if (test == 0 ) then                
+                         pres = .true.
+                         exit
+                      end if
+                   end do
+
+
+
+                   if (pres) cycle
+
+                   !! if we've made it here, we have a shiny new slater determinant
+
+                   SD_Basis(q,: )= newSD
+                   q = q +1
+
+                end do
+             end do
+
+             !!! this gets deallocated so we can start again. 
+             deallocate(tmp_REF)
+
+          end do
+       end do
+    end do
+    
+
+
+
+    
     !! pack 'er up
     q= q-1
     allocate(BASIS(q,Abody-1))
@@ -419,15 +523,15 @@ contains
     !! based on the supplied reference space
     implicit none
 
-    integer,allocatable,dimension(:,:) :: SD_BASIS,BASIS
+    integer,allocatable,dimension(:,:) :: SD_BASIS,BASIS,tmp_REF
     integer,dimension(:,:) :: REF
     integer :: Abody,ix,jx,kx,lx,num_refs,PAR,M,jin,lout,tout
-    integer :: q,mout,nin,test,BigT
-    integer :: PTarg,MTarg,dTz
+    integer :: q,mout,nin,test,BigT,Mx,Px,Tx
+    integer :: PTarg,MTarg,dTz,num_tmp
     integer,allocatable,dimension(:) :: valid
     integer,dimension(mbas%Abody+1) :: newSD 
     real(8) :: t1,t2,omp_get_wtime
-    logical :: present
+    logical :: pres
 
     t1=omp_get_wtime()
     
@@ -474,17 +578,17 @@ contains
           jin = mbas%jj(kx)
 
              
-          present = .false. 
+          pres = .false. 
           do lx = 1, Abody
              
              if (ref(ix,lx) .ne. kx) cycle
              
              !if we're here, this means that this state is already in the SD
-             present = .true.
+             pres = .true.
              exit
           end do
           
-          if (present) cycle ! don't count this state if it's already in the SD 
+          if (pres) cycle ! don't count this state if it's already in the SD 
 
           
           !! if we're here, that means we've found a particle state that isn't in the current SD                                                                  
@@ -495,18 +599,18 @@ contains
 
           ! check that this SD isn't already in SD_Basis
 
-          present = .false. 
+          pres = .false. 
           do lx = 1, q-1                
              test = sum( abs( newSD - SD_Basis(lx,:)) )
              if (test == 0 ) then                
-                present = .true.
+                pres = .true.
                 exit
              end if
           end do
 
     
              
-          if (present) cycle
+          if (pres) cycle
 
           !! if we've made it here, we have a shiny new slater determinant
           
@@ -516,6 +620,89 @@ contains
        end do
     end do
 
+    !! Next, we repeatedly generate Abody sd basis, with different quantum numbers.
+    !! then we repeat the procedure above using those as the "reference"
+    !! this constructs the 2p1h part of the basis.
+    
+    do Mx = 0 , maxval(mbas%mm)+1,2
+       do Px = 0 , 1
+          do Tx = -2 , 2 , 2
+          
+             call PC_generate_basis(REF,tmp_REF,Mx,Px,Tx)  
+
+             !! okay, now we should have a nice basis of
+             !! NpNh states.
+
+             !! Next, we would like to add one particle, in the same way
+             !! we did with the real references. 
+
+             num_tmp = size(tmp_REF(:,1)) 
+             
+             do ix = 1, num_tmp
+       
+                do kx = 1, mbas%Ntot
+
+                   !! first check if this state has the right symmetry 
+                   if (Mx+mbas%mm(kx) .ne. MTarg) cycle
+                   if (mod(mbas%ll(kx)+Px,2).ne. PTarg) cycle
+                   if (mbas%tz(kx)+Tx .ne. dTz) cycle
+
+
+                   !! IF we've made it here, the (+kx) state is a candidate for a 1p excitation.
+                   !! make sure kx isn't already in the current reference
+                   nin = mbas%nn(kx)
+                   jin = mbas%jj(kx)
+
+
+                   pres = .false. 
+                   do lx = 1, Abody
+
+                      if (tmp_ref(ix,lx) .ne. kx) cycle
+
+                      !if we're here, this means that this state is already in the SD
+                      pres = .true.
+                      exit
+                   end do
+
+                   if (pres) cycle ! don't count this state if it's already in the SD 
+
+
+                   !! if we're here, that means we've found a particle state that isn't in the current SD                                                                  
+                   newSD(1:Abody) = tmp_REF(ix,:)
+                   newSD(Abody+1) = kx
+
+                   call sort_SD(newSD) 
+
+                   ! check that this SD isn't already in SD_Basis
+
+                   pres = .false. 
+                   do lx = 1, q-1                
+                      test = sum( abs( newSD - SD_Basis(lx,:)) )
+                      if (test == 0 ) then                
+                         pres = .true.
+                         exit
+                      end if
+                   end do
+
+
+
+                   if (pres) cycle
+
+                   !! if we've made it here, we have a shiny new slater determinant
+
+                   SD_Basis(q,: )= newSD
+                   q = q +1
+
+                end do
+             end do
+
+             !!! this gets deallocated so we can start again. 
+             deallocate(tmp_REF)
+
+          end do
+       end do
+    end do
+    
     !! pack 'er up
     q= q-1
     allocate(BASIS(q,Abody+1))
