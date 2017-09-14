@@ -15,8 +15,8 @@ contains
     real(8) :: z0,t3,t4,t5,t6,Eimsrg
     real(8),allocatable,dimension(:) :: workl,DX,QX,resid,work,workD
     real(8),allocatable,dimension(:,:) :: V,Z
-    integer :: lwork,info,ido,ncv,ldv,iparam(11),ipntr(11),dm,x
-    integer :: ishift,mxiter,nconv,mode,lworkl,ldz,nev,inc,ii,jj,aa
+    integer :: lwork,info,ido,ncv,ldv,iparam(11),ipntr(11),dm,x,nthr,omp_get_num_threads
+    integer :: ishift,mxiter,nconv,mode,lworkl,ldz,nev,inc,ii,jj,aa,q
     real(8) :: tol,sigma,sm,Egs,t1,t2,omp_get_wtime,amp1,amp2,dcgi,spin
     character(1) :: BMAT,HOWMNY 
     character(2) :: which
@@ -133,13 +133,18 @@ contains
     call print_total_memory
     
 
+    !$OMP PARALLEL
+    nthr=omp_get_num_threads()
+    !$OMP END PARALLEL
     
     write(*, "(A)") "Computing J matrix" 
-    !$OMP PARALLEL DO PRIVATE(II,JJ,x) SHARED(basis,Jtot_MAT,dm)
-    do II = 1,dm
-       do JJ = II,dm
-          x = bosonic_tp_index(II,JJ,dm) 
-          Jtot_MAT(x) =  Jtot_elem(II,JJ,basis)          
+    !$OMP PARALLEL DO PRIVATE(II,JJ,x,q) SHARED(basis,Jtot_MAT,dm,nthr)
+    do q = 1 , nthr   !!! each thread works on one "q" 
+       do II = q,dm,nthr  ! matrix is triangle, so make sure one thread doesn't do all the work. 
+          do JJ = II,dm
+             x = bosonic_tp_index(II,JJ,dm) 
+             Jtot_MAT(x) =  Jtot_elem(II,JJ,basis)          
+          end do
        end do
     end do
     !$OMP END PARALLEL DO
