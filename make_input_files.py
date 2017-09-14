@@ -50,23 +50,29 @@ memsMRCI = a.strip().split(",")
 a = raw_input("enter comma delimited IMSRG memories for each eMax (just an integer for gb): ")
 memsIMSRG = a.strip().split(",")
 
-fq = open("submit_mrci.bat","w")
+a = raw_input("should we make IMSRG input files too? (y/n): ")
+if (a.lower() == "y"):
+    imsrg = True
+else:
+    imsrg = False
+
+fq = open(names[ZTarg]+str(ATarg)+"_"+inter+"_mrci.bat","w")
 fq.write("#!/bin/bash \n\n")
 
+if imsrg:
+    fx = open(names[Zref]+str(Aref)+"_"+inter+"_imsrg.bat","w")
+    fx.write("#!/bin/bash \n\n")
 
-fx = open("submit_imsrg.bat","w")
-fx.write("#!/bin/bash \n\n")
+    fxx = open(names[Zref]+str(Aref)+"_"+inter+"_restart.bat","w")
+    fxx.write("#!/bin/bash \n\n")
+    
+    fy = open(names[Zref]+str(Aref)+"_"+inter+"_hfb.bat","w")
+    fy.write("#!/bin/bash \n\n")
+    
+    fz = open(names[Zref]+str(Aref)+"_"+inter+"_nord.bat","w")
+    fz.write("#!/bin/bash \n\n")
 
-fxx = open("submit_restart.bat","w")
-fxx.write("#!/bin/bash \n\n")
-
-fy = open("submit_hfb.bat","w")
-fy.write("#!/bin/bash \n\n")
-
-
-fz = open("submit_nord.bat","w")
-fz.write("#!/bin/bash \n\n")
-
+    
 etick =0
 for e in eMaxes:
     for hw in hws:
@@ -140,6 +146,8 @@ for e in eMaxes:
         fq.write("qsub pbsMRCI_"+prefix+"\n")
 
 
+        if imsrg:
+            continue
         ### write HFB pbs file
 
         time = "04:00:00"
@@ -166,8 +174,7 @@ for e in eMaxes:
         fl.close()
 
         fy.write("qsub pbsHFB_"+prefix2+"\n")
-
-
+        
         if (int(e) > 10 ):
             thing = "_lMax10"
         else:
@@ -231,10 +238,10 @@ for e in eMaxes:
         fl.write("export OMP_NUM_THREADS="+ppn+"\n\n")
 
         if (yes == "n"):
-            fl.write("./solveimsrg_flint RefType=PNP EtaType=BrillouinMinimal sMax=5000.0 res/" \
+            fl.write("./solveimsrg_flint RefType=PNP EtaType=BrillouinMinimal WriteAll sMax=5000.0 res/" \
                      +names[Zref]+str(Aref)+"_eMax"+ex+thing+"_hwHO"+hwx+".hfbc\n\n")
         else:
-            fl.write("./solveimsrg_flint EtaType=BrillouinMinimal sMax=5000.0 res/" \
+            fl.write("./solveimsrg_flint EtaType=BrillouinMinimal WriteAll sMax=5000.0 res/" \
                      +names[Zref]+str(Aref)+"_eMax"+ex+thing+"_hwHO"+hwx+".hfbc\n\n") 
 
         fl.write("qstat -f ${PBS_JOBID}\nexit 0")
@@ -268,7 +275,7 @@ for e in eMaxes:
 
         fl.write("cd res \n")
         fl.write("ln -s ${SCRATCH}/"+inter+"/res/"+prefix2+".flint.chk \n\n" )
-        fl.write("./solveimsrg_flint RefType=PNP EtaType=BrillouinMinimal sMax=5000.0 res/" \
+        fl.write("./solveimsrg_flint RefType=PNP EtaType=BrillouinMinimal WriteAll sMax=5000.0 res/" \
                  +prefix2+".flint.chk\n\n")
 
         fl.write("qstat -f ${PBS_JOBID}\nexit 0")
