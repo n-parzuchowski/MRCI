@@ -16,13 +16,14 @@ contains
     real(8),allocatable,dimension(:) :: workl,DX,QX,resid,work,workD
     real(8),allocatable,dimension(:,:) :: V,Z
     integer :: lwork,info,ido,ncv,ldv,iparam(11),ipntr(11),dm,x,nthr,omp_get_num_threads
-    integer :: ishift,mxiter,nconv,mode,lworkl,ldz,nev,inc,ii,jj,aa,q
+    integer :: ishift,mxiter,nconv,mode,lworkl,ldz,nev,inc,ii,jj,aa,q,eMax
     real(8) :: tol,sigma,sm,Egs,t1,t2,omp_get_wtime,amp1,amp2,dcgi,spin
     character(1) :: BMAT,HOWMNY 
     character(2) :: which
     logical :: rvec
     logical,allocatable,dimension(:) :: selct
 
+    eMax =maxval(jbas%nn)*2
     t1 = omp_get_wtime()
 
     print* 
@@ -148,6 +149,12 @@ contains
        end do
     end do
     !$OMP END PARALLEL DO
+    open(unit=66,file="../output/"//trim(adjustl(prefix))//&
+         "_ex_from_imsrg.dat")
+    open(unit=67,file="../output/"//trim(adjustl(prefix))//&
+         "_absen.dat")
+    open(unit=68,file="../output/"//trim(adjustl(prefix))//&
+         "_ex_from_mrci.dat")
 
     print*
     write(*, "(A)") "================================================="
@@ -178,9 +185,19 @@ contains
        spin = (sqrt(sm*4+1.d0 )-1)/2.d0 
        
        write(*,"(3(f12.4),f9.1)") DX(AA),DX(AA)-EIMSRG,sm,spin
-!       write(66,"(3(e25.14))") DX(AA),DX(AA)-EIMSRG,sm
+
+
        print*
     end do
+
+    write(66,"(2(I5),6(e17.6))") hw,eMax,DX(1:5)-EIMSRG
+    write(67,"(2(I5),6(e17.6))") hw,eMax,DX(1:5)
+    write(68,"(2(I5),6(e17.6))") hw,eMax,DX(1:5)-DX(1)
+
+    close(66)
+    close(67)
+    close(68)
+
     t2 = omp_get_wtime()    
     print*, "TIME: ", t2-t1
     t2 = omp_get_Wtime() 

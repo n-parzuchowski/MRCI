@@ -44,6 +44,8 @@ END type tpd
 type(spd),public :: jbas,mbas
 type(tpd),public :: tp_basis 
 character(500) :: ME_DIR,SP_DIR,INI_DIR,OUTPUT_DIR
+character(200) :: prefix
+integer :: hw
 real(8) :: tot_memory,time_Zero
 contains
 
@@ -82,7 +84,7 @@ contains
     implicit none
 
     character(200) :: spfile,intfile,finput,reffile,denfile
-    integer :: AA,Aprot,Aneut
+    integer :: AA,Aprot,Aneut,ii
 
     call getenv("MRCI_SP_FILES",SP_DIR)
     SP_DIR=adjustl(SP_DIR)
@@ -119,8 +121,24 @@ contains
     read(45,*) !Enter REF file
     read(45,*) reffile 
 
+    ii = 1
+    do while (.true.) 
+       if (intfile(ii:ii+3) == ".ham") exit
+       print*, intfile(ii:ii+3)
+       if (ii==100) STOP
+       ii = ii +1
+    end do
+    prefix = intfile(1:ii-1)
 
+    ii = 1
+    do while (.true.) 
+       if (intfile(ii:ii+4) == "hwHO0") exit
+       print*, intfile(ii:ii+4)
+       if (ii==100) STOP
+       ii = ii +1
+    end do
 
+    read(intfile(ii+5:ii+6) ,"(I2)") hw
 
     close(45)
 
