@@ -175,10 +175,10 @@ contains
 
 
        
-       spin = (sqrt(nint(sm)*4+1.d0 )-1)/2.d0 
+       spin = (sqrt(sm*4+1.d0 )-1)/2.d0 
        
-       write(*,"(4(f12.4))") DX(AA),DX(AA)-EIMSRG,sm,spin
-       write(66,"(3(e25.14))") DX(AA),DX(AA)-EIMSRG,sm
+       write(*,"(3(f12.4),f9.1)") DX(AA),DX(AA)-EIMSRG,sm,spin
+!       write(66,"(3(e25.14))") DX(AA),DX(AA)-EIMSRG,sm
        print*
     end do
     t2 = omp_get_wtime()    

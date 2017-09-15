@@ -1,3 +1,6 @@
+import sys
+import os.path
+
 names= ["n","H","He","Li","Be","B","C","N","O","F","Ne","Na","Mg","Al", \
         "Si","P","S","Cl","Ar","K","Ca","Sc","Ti","V","Cr","Mn","Fe", \
         "Co","Ni","Cu","Zn","Ga","Ge","As","Se","Br","Kr","Rb","Sr", \
@@ -47,14 +50,16 @@ timesMRCI = a.strip().split(",")
 a = raw_input("enter comma delimited MRCI memories for each eMax (just an integer for gb): ")
 memsMRCI = a.strip().split(",")
 
-a = raw_input("enter comma delimited IMSRG memories for each eMax (just an integer for gb): ")
-memsIMSRG = a.strip().split(",")
-
 a = raw_input("should we make IMSRG input files too? (y/n): ")
 if (a.lower() == "y"):
     imsrg = True
 else:
     imsrg = False
+
+if imsrg:
+    a = raw_input("enter comma delimited IMSRG memories for each eMax (just an integer for gb): ")
+    memsIMSRG = a.strip().split(",")
+
 
 fq = open(names[ZTarg]+str(ATarg)+"_"+inter+"_mrci.bat","w")
 fq.write("#!/bin/bash \n\n")
@@ -146,7 +151,7 @@ for e in eMaxes:
         fq.write("qsub pbsMRCI_"+prefix+"\n")
 
 
-        if imsrg:
+        if not imsrg:
             continue
         ### write HFB pbs file
 
@@ -285,7 +290,16 @@ for e in eMaxes:
         fxx.write("qsub pbsRESTART_"+prefix2+"\n")
 
     etick+=1
-fx.close()
-fy.close()
-fz.close()
+
 fq.close()
+os.system("chmod 0755 "+names[ZTarg]+str(ATarg)+"_"+inter+"_mrci.bat")
+
+if imsrg:
+    fx.close()
+    fxx.close()
+    fy.close()
+    fz.close()
+    os.system("chmod 0755 "+names[Zref]+str(Aref)+"_"+inter+"_imsrg.bat")
+    os.system("chmod 0755 "+names[Zref]+str(Aref)+"_"+inter+"_restart.bat")
+    os.system("chmod 0755 "+names[Zref]+str(Aref)+"_"+inter+"_hfb.bat")
+    os.system("chmod 0755 "+names[Zref]+str(Aref)+"_"+inter+"_nord.bat")
