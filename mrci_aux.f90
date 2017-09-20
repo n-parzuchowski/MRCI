@@ -123,18 +123,16 @@ contains
 
     ii = 1
     do while (.true.) 
-       if (intfile(ii:ii+3) == ".ham") exit
-       print*, intfile(ii:ii+3)
-       if (ii==100) STOP
+       if (finput(ii:ii+3) == ".ini") exit
+       if (ii==100) STOP "ini file is confusing me"
        ii = ii +1
     end do
-    prefix = intfile(1:ii-1)
+    prefix = finput(1:ii-1)
 
     ii = 1
     do while (.true.) 
        if (intfile(ii:ii+4) == "hwHO0") exit
-       print*, intfile(ii:ii+4)
-       if (ii==100) STOP
+       if (ii==100) STOP "ini file is confusing me"
        ii = ii +1
     end do
 

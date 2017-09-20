@@ -16,6 +16,8 @@ for I in range(len(a)):
         NTarg = ATarg- ZTarg
         break
 
+
+print "Target Z,N: ",ZTarg,NTarg
 a = raw_input("Enter Reference (C14): ")
 
 
@@ -27,6 +29,7 @@ for I in range(len(a)):
         Nref = Aref- Zref
         break
 
+print "Reference Z,N: ",Zref,Nref
 yes = raw_input("is this a single reference state? (y/n): " )
 
 yes = yes.lower()
@@ -92,17 +95,17 @@ for e in eMaxes:
             hwx = hw
 
         if (int(e)> 10):
-            prefix = elem+str(ATarg)+"_"+inter+"_eMax"+ex+"lMax10_hwHO"+hwx
-            prefix2 = elem+str(Aref)+"_"+inter+"_eMax"+ex+"lMax10_hwHO"+hwx
+            prefix = names[ZTarg]+str(ATarg)+"_"+inter+"_eMax"+ex+"lMax10_hwHO"+hwx
+            prefix2 = names[Zref]+str(Aref)+"_"+inter+"_eMax"+ex+"lMax10_hwHO"+hwx
         else:
-            prefix = elem+str(ATarg)+"_"+inter+"_eMax"+ex+"_hwHO"+hwx
-            prefix2 = elem+str(Aref)+"_"+inter+"_eMax"+ex+"_hwHO"+hwx
+            prefix = names[ZTarg]+str(ATarg)+"_"+inter+"_eMax"+ex+"_hwHO"+hwx
+            prefix2 = names[Zref]+str(Aref)+"_"+inter+"_eMax"+ex+"_hwHO"+hwx
 
         intfile = prefix2 + ".ham.me2b.gz" 
         rhofile = prefix2 + ".lambda.me2b.gz"
         spfile = "hk"+e+".sps"
 
-
+        
         ### write MRCI inifile
 
         fl = open(prefix+".ini","w")
@@ -279,7 +282,8 @@ for e in eMaxes:
         fl.write("export OMP_NUM_THREADS="+ppn+"\n\n")
 
         fl.write("cd res \n")
-        fl.write("ln -s ${SCRATCH}/"+inter+"/res/"+prefix2+".flint.chk \n\n" )
+        fl.write("ln -s ${SCRATCH}/"+inter+"/res/"+prefix2+".flint.chk \n" )
+        fl.write("cd .. \n\n")
         fl.write("./solveimsrg_flint RefType=PNP EtaType=BrillouinMinimal WriteAll sMax=5000.0 res/" \
                  +prefix2+".flint.chk\n\n")
 
