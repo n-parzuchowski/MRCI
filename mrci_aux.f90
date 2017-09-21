@@ -140,10 +140,13 @@ contains
 
     close(45)
 
-    mbas%mtarg = mod(mbas%Atarg,2)
-    
+    mbas%mtarg = mod(mbas%Atarg,2)    
+
     call dcgi00()
 
+    write(*,"(A)") "Target Nucleus: "//nucleus_name(mbas%Ntarg,mbas%Ztarg)
+    write(*,"(A)") "Reference Nucleus: "//nucleus_name(mbas%Aneut,mbas%Aprot)
+    
   end subroutine read_input_file
 !!!===========================================================
 !!!===========================================================
@@ -172,6 +175,26 @@ contains
     
     close(45)
   end subroutine read_ref_file
+!!!===========================================================
+!!!===========================================================
+  character(5) function nucleus_name(N,Z) 
+!!! print out the spectral notation for an sp state
+    implicit none
+    
+    integer,intent(in) :: N,Z
+    character(2),dimension(0:50) :: names 
+    character(2) :: Astr
+    
+    names = (/"n ","H ","He","Li","Be","B ","C ","N ","O ","F ",&
+         "Ne","Na","Mg","Al","Si","P ","S ","Cl","Ar","K ","Ca",&
+         "Sc","Ti","V ","Cr","Mn","Fe","Co","Ni","Cu","Zn","Ga",&
+         "Ge","As","Se","Br","Kr","Rb","Sr","Y ","Zr","Nb","Mo",&
+         "Tc","Ru","Rh","Pd","Ag","Cd","In","Sn"/)
+        
+    write(Astr,"(I2)") N+Z 
+    nucleus_name =  adjustl(trim(adjustl(names(Z)))//trim(adjustl(Astr)))    
+    
+  end function nucleus_name
 !!!===========================================================
 !!!===========================================================
   character(6) function spec_not(t,n,j,l) 

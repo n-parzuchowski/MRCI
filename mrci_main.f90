@@ -24,7 +24,7 @@ program mrci_main
   call read_Ref_file(ref_file,num_refs,REF)
 
   call generate_basis(ref,basis)
-
+  
   call generate_tp_basis
 
   ! get interaction

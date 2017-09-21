@@ -140,13 +140,15 @@ contains
     integer,allocatable,dimension(:) :: valid
     integer,dimension(mbas%Abody) :: newSD 
     real(8) :: t1,t2,omp_get_wtime
-    logical :: pres
+    logical :: pres,printthem 
 
     t1=omp_get_wtime()    
     
     Abody = mbas%Abody
 
+    printthem = .true. 
     if (present(Mx) ) then
+       printthem=.false. 
        Mtarg = Mx
     else
        Mtarg = mbas%Mtarg
@@ -156,7 +158,6 @@ contains
     else
        Ptarg = mbas%Ptarg
     end if
-
     if (present(Tx) ) then
        dTz = Tx
     else
@@ -166,10 +167,10 @@ contains
     num_Refs = size(REF(:,1)) 
     allocate(SD_BASIS(100000,Abody)) 
     SD_Basis = 0
-    write(*,'(A)') "Allocated generic SD basis placeholder"
-    call print_memory(100000*Abody*4.d0)
+    if (printthem) write(*,'(A)') "Allocated generic SD basis placeholder"
+    if (printthem) call print_memory(100000*Abody*4.d0)
     tot_memory = tot_memory + 100000*Abody*4.d0
-    call print_total_memory
+    if (printthem) call print_total_memory
     
     
     do ix = 1, num_Refs
@@ -260,25 +261,26 @@ contains
     !! pack 'er up
     q= q-1
     allocate(BASIS(q,Abody))
-    write(*,'(A)')  "Allocated unique SD basis descriptor"
-    call print_memory(q*Abody*4.d0)
+    if (printthem)  write(*,'(A)')  "Allocated unique SD basis descriptor"
+    if (printthem) call print_memory(q*Abody*4.d0)
     tot_memory = tot_memory + q*Abody*4.d0
-    call print_total_memory
+    if (printthem)  call print_total_memory
 
     BASIS = SD_BASIS(1:q,:)
 
     deallocate(SD_BASIS)
-    write(*,'(A)')  "Deallocated generic SD basis placeholder"
+    if (printthem) write(*,'(A)')  "Deallocated generic SD basis placeholder"
     tot_memory = tot_memory - 100000*Abody*4.d0
-    call print_total_memory
+    if (printthem)  call print_total_memory
 
-    write(*,'(A)')  '===================================================='
-    write(*,'(A)')  'SLATER DETERMINANT BASIS GENERATED'
-    write(*,'(I5,A)')   q, ' BASIS VECTORS'
-
-    write(*,'(A)')  "In order to store a matrix in this basis:"
-    call print_memory(dfloat(q)*dfloat(q+1)*4.d0)
-    
+    if (printthem) then 
+       write(*,'(A)')  '===================================================='
+       write(*,'(A)')  'SLATER DETERMINANT BASIS GENERATED'
+       write(*,'(I5,A)')   q, ' BASIS VECTORS'
+       
+       write(*,'(A)')  "In order to store a matrix in this basis:"
+       call print_memory(dfloat(q)*dfloat(q+1)*4.d0)
+    end if
     
     !! check that nothing is wrong
     do ix = 1,q
@@ -289,7 +291,8 @@ contains
        end if
     end do
     t2=omp_get_wtime()
-    write(*,"(A,f6.1,A,f10.1)") "Time: ", t2-t1, " Total: ", t2-time_Zero 
+    if (printthem) write(*,"(A,f6.1,A,f10.1)") &
+         "Time: ", t2-t1, " Total: ", t2-time_Zero 
   end subroutine PC_generate_basis
 !!!===========================================================
 !!!===========================================================
