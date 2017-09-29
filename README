@@ -1,0 +1,11 @@
+Multireference configuration interaction code
+Nathan Parzuchowski 2017 
+
+gfortran and ifort makefiles are provided.  
+
+libraries: arpack and zlib.   
+
+
+
+
+
