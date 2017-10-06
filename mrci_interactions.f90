@@ -12,13 +12,47 @@ module mrci_interactions
   end type block_mat_full
 
 
-  type(block_mat),allocatable,dimension(:),public :: ME2B,Lambda2b
-  type(block_mat_full),allocatable,dimension(:,:),public :: ME1B,Lambda1b
-  real(8),public :: ME0B
+  type(block_mat),allocatable,dimension(:),public :: ME2B,Lambda2b,Hcm2b,Op2b
+  type(block_mat_full),allocatable,dimension(:,:),public :: ME1B,Lambda1b,Hcm1b,Op1b
+  real(8),public :: ME0B,Hcm0b,Op0b
 
   
 contains
 
+  subroutine lawsonize(beta)
+    implicit none
+
+    real(8),intent(in) :: beta
+    integer :: q,ii,mem
+    !! just add beta*Hcm to Hin
+
+    write(*,"(A,f5.2)") "adding Lawson term to hamiltonian with beta=",beta 
+    ME0B = ME0B + beta * Hcm0b
+
+    mem = 0 
+    do q = 1, size(ME2B)
+       ME2B(q)%X = ME2B(q)%X + beta* Hcm2B(q)%X
+       mem = mem + size(ME2B(q)%X)
+       deallocate(Hcm2B(q)%X)
+    end do
+    deallocate(Hcm2B)
+    
+    do q = 1, size(ME1B(:,1))
+       do ii = 1,size(ME1B(q,:))
+          ME1B(q,ii)%XX = ME1B(q,ii)%XX + beta* Hcm1b(q,ii)%XX
+          mem = mem + size(ME1B(q,ii)%XX)
+          deallocate(Hcm1b(q,ii)%XX) 
+       end do
+    end do
+    deallocate(Hcm1b)
+
+    write(*,"(A)") "deallocated Hcm storage" 
+    tot_memory = tot_memory - mem * 8.d0 
+    call print_total_memory 
+    
+  end subroutine lawsonize
+
+   
   subroutine read_me1b(z0,z1,intfile)
     implicit none
 
@@ -113,7 +147,101 @@ contains
 !    close(45) 
     sz=gzclose(hndle)
   end subroutine read_me1b
+
+  subroutine generate_1b_density(z1,REF)
+    implicit none
+
+    type(block_mat_full),allocatable,dimension(:,:) :: z1 
+    integer, dimension(:) :: REF
+    integer :: q,a,totme,buflen,ist,bMax,b,endpos
+    integer :: a1,a2,a1len,a2len,aa,menpos,lenme,ii
+    integer ::  lj,t,l,twoj,nMax,eMax,Lmax,st
+    character(200) :: intfile,me1bfile 
+    character(20) :: mes,memstr
+    character(3) :: units
     
+     Lmax = mbas%lmax
+     eMax = 2*mbas%nmax
+
+     allocate(z1(2,2*Lmax+1))
+     
+     do t = 0,1 !neutrons are 0, protons 1
+        lj = 0
+        do l = 0, Lmax
+           do  twoj = abs(2*l - 1) , 2*l+1 , 2
+              lj=lj+1             
+              nMax = (eMax - l)/2
+              allocate(z1(t+1,lj)%XX(nMax+1,nMax+1))
+              z1(t+1,lj)%XX=0.d0
+           end do
+        end do
+     end do
+
+    do   ii = 1, size(REF)  
+       st = REF(ii)
+       t = (1-mbas%tz(st))/2
+       l = mbas%ll(st)
+       twoj=mbas%jj(st)
+       a1 = mbas%nn(st)
+
+       if (l == 0 )then
+          lj = 1
+       else
+          lj = 1+l+(twoj-1)/2 
+       end if
+       
+       z1(t+1,lj)%XX(a1+1,a1+1) =&
+            z1(t+1,lj)%XX(a1+1,a1+1)+1.d0/(twoj+1.d0)
+
+    end do
+
+  end subroutine generate_1b_density
+
+  subroutine generate_2b_density(z2)
+    implicit none
+
+    type(block_mat),allocatable,dimension(:) :: z2
+    integer :: q,a,totme,buflen,ist,bMax,b,endpos,i,j
+    integer :: a1,a2,a1len,a2len,aa,menpos,lenme,ii,spot
+    real(8) :: mem,me,x
+    real(8) :: t1,t2,omp_get_wtime
+    character(200) :: intfile
+    character(20) :: mes,memstr
+    character(3) :: units
+    character(10) :: fm,fma2,fma1,fme
+    logical :: do_read,get_out,found_a1,found_a2
+    
+    t1 = omp_get_Wtime()
+    
+    allocate(z2(tp_basis%bMax))
+
+    totme = 0
+    do q = 1, tp_basis%bMax
+       a = tp_basis%block(q)%aMax
+       allocate(z2(q)%X(a*(a+1)/2))
+       z2(q)%X = 0.d0
+       totme = totme + a*(a+1)/2 
+    end do
+
+    write(mes,'(I20)') totme
+    mes = adjustl(mes) 
+    write(*,"(A)") "Allocated space for "//trim(mes)//" matrix elements." 
+
+    tot_memory = tot_memory +  totme*8.d0
+    mem = totme*8.d0/1024.d0/1024.d0
+    units = ' MB'
+    if (mem > 1024.d0 ) then
+       mem = totme*8.d0/1024.d0/1024.d0/2024.d0
+       units=' GB'
+    end if
+    write(memstr,'(f20.3)') mem       
+    memstr = adjustl(memstr)
+
+    write(*,"(A)") "Memory: "//trim(memstr)//units
+    call print_total_memory 
+
+  end subroutine generate_2b_density
+      
    
   subroutine read_me2b(z2,intfile)
     implicit none

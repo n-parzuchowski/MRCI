@@ -16,9 +16,9 @@ END TYPE int_vec
 TYPE :: spd    ! single particle discriptor
    integer :: Ntot, Jmax, Lmax,Njjcoup,nMax
    integer :: n,l,j,t,m,Abody,Aneut,Aprot
-   integer :: Ptarg,Mtarg,dTz
+   integer :: Ptarg,Mtarg,dTz,num_obs
    integer :: Atarg, Ntarg , Ztarg
-   real(8) :: e
+   real(8) :: e,law_beta
    integer, allocatable, dimension(:) :: nn, ll, jj, mm,tz,jlab
    type(int_vec),allocatable,dimension(:) :: amap,qmap
    type(int_vec),allocatable,dimension(:,:) :: tlj_to_ab 
@@ -80,10 +80,11 @@ contains
   end subroutine print_total_memory
 !!!===========================================================
 !!!===========================================================
-  subroutine read_input_file(finput,spfile,intfile,denfile,reffile)
+  subroutine read_input_file(finput,spfile,intfile,denfile,reffile,lawfile,obsfiles)
     implicit none
 
-    character(200) :: spfile,intfile,finput,reffile,denfile
+    character(200) :: spfile,intfile,finput,reffile,denfile,lawfile
+    character(200),allocatable,dimension(:) :: obsfiles
     integer :: AA,Aprot,Aneut,ii
 
     call getenv("MRCI_SP_FILES",SP_DIR)
@@ -121,6 +122,23 @@ contains
     read(45,*) !Enter REF file
     read(45,*) reffile 
 
+    read(45,*) !Enter lawson param
+    read(45,*) mbas%law_beta
+
+    read(45,*) !Enter lawson file
+    read(45,*) lawfile
+
+    read(45,*) !Enter number of observables
+    read(45,*) mbas%num_obs
+
+    allocate(obsfiles(mbas%num_obs))
+    read(45,*) !Enter observable files
+    
+    do ii = 1, mbas%num_obs
+       read(45,*)  obsfiles(ii)
+    end do
+
+    
     ii = 1
     do while (.true.) 
        if (finput(ii:ii+3) == ".ini") exit
@@ -301,6 +319,38 @@ integer function bosonic_tp_index(i,j,n)
   bosonic_tp_index = n*(i-1) + (3*i-i*i)/2 + j - i 
   
 end function 
+!========================================================
+logical function instr(phrase,input)
+  implicit none
 
+  character(*),intent(in) :: input,phrase
+  integer :: len_i,len_p,q 
+
+  len_i = len(input)
+  len_p = len(phrase)
+
+  do q = 1 , len_i
+     if (input(q:q+len_p-1) == phrase ) then
+        instr = .true.
+        return
+     end if
+  end do
+  instr=.false. 
   
-  end module mrci_aux
+end function instr
+!========================================================
+logical function non_negligible(X)
+  implicit none
+
+  real(8),intent(in) :: X 
+
+  if (abs(X) > 1e-8 ) then
+     non_negligible = .true.
+  else
+     non_negligible = .false.
+  end if
+
+end function non_negligible
+end module mrci_aux
+  
+  

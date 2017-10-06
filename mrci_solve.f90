@@ -3,12 +3,15 @@ module mrci_solve
   use mrci_operators
   implicit none
 
-  real(8),allocatable,dimension(:) :: HAM,JTOT_MAT
+  real(8),allocatable,dimension(:) :: HAM,JTOT_MAT,OBS,energies,spins
+  real(8),allocatable,dimension(:,:) :: vectors
+  
 contains
 
-  subroutine diagonalize(z0,z1,z2,basis,Eimsrg)
+  subroutine diagonalize(z0,z1,z2,basis,Eimsrg,nStates)
     implicit none
-    
+
+    integer,intent(in) :: nStates
     type(block_mat_full),allocatable,dimension(:,:) :: z1    
     type(block_mat),allocatable,dimension(:) :: z2
     integer,dimension(:,:) :: basis
@@ -39,10 +42,17 @@ contains
     call print_memory(dm*(dm+1)*4.d0)
     tot_memory = tot_memory + dm*(dm+1)*4.d0
 
+    allocate(energies(nStates),Spins(nstates))
+    allocate(vectors(nStates,dm))
+
+    write(*,"(A)") "Allocated Eigenvector storage" 
+    call print_memory(dm*nStates*8.d0)
+    tot_memory = tot_memory + dm*nStates*8.d0
+
     
     call print_total_memory
     
-    nev = 10 ! I only care about the ground state right now. 
+    nev = nStates ! I only care about the ground state right now. 
     ido = 0  ! status integer is 0 at start
     BMAT = 'I' ! standard eigenvalue problem (N for generalized) 
     which = 'SA' ! compute smallest eigenvalues (algebraic) ('SM') is magnitude.
@@ -185,8 +195,8 @@ contains
        spin = (sqrt(sm*4+1.d0 )-1)/2.d0 
        
        write(*,"(3(f12.4),f9.1)") DX(AA),DX(AA)-EIMSRG,sm,spin
-
-
+       
+       spins(AA) = spin
        print*
     end do
 
@@ -198,15 +208,97 @@ contains
     close(67)
     close(68)
 
-    t2 = omp_get_wtime()    
-    print*, "TIME: ", t2-t1
     t2 = omp_get_Wtime() 
     write(*,"(A,f10.1,A,f10.1)") "Time: ", t2-t1, " Total: ", t2-time_Zero 
-    
+
+    vectors = transpose(Z(:,1:nStates))
+    energies = DX(1:nStates) 
   end subroutine diagonalize
 
+  subroutine observable(z0,z1,z2,basis,nStates)
+    implicit none
 
-  
+    integer,intent(in) :: nStates
+    type(block_mat_full),allocatable,dimension(:,:) :: z1    
+    type(block_mat),allocatable,dimension(:) :: z2
+    integer,dimension(:,:) :: basis
+    real(8) :: z0,t1,t2,sm,amp1,amp2,omp_get_wtime
+    integer :: eMax,dm,nthr,x,II,JJ,AA,q,omp_get_num_threads
+
+    eMax =maxval(jbas%nn)*2
+    t1 = omp_get_wtime()
+
+    print* 
+    write(*,"(A)") '=====================================' 
+    write(*,"(A)") 'COMPUTING OBSERVABLES'
+    print*
+    
+    dm = size(basis(:,1))
+    allocate(OBS(dm*(dm+1)/2))
+    OBS=0.d0
+
+    write(*,*)
+    write(*,"(A)") "Allocated observable storage" 
+    call print_memory(dm*(dm+1)*4.d0)
+    tot_memory = tot_memory + dm*(dm+1)*4.d0
+
+
+    
+    !$OMP PARALLEL
+    nthr=omp_get_num_threads()
+    !$OMP END PARALLEL
+    
+    write(*, "(A)") "Computing observable matrix..." 
+    !$OMP PARALLEL DO PRIVATE(II,JJ,x,q) SHARED(basis,Jtot_MAT,dm,nthr)
+    do q = 1 , nthr   !!! each thread works on one "q" 
+       do II = q,dm,nthr  ! matrix is triangle, so make sure one thread doesn't do all the work. 
+          do JJ = II,dm
+             x = bosonic_tp_index(II,JJ,dm) 
+             OBS(x) = mat_elem(II,JJ,basis,z1,z2)
+          end do
+          x = bosonic_tp_index(II,II,dm)
+          OBS(X) = OBS(X) + z0 
+       end do
+    end do
+    !$OMP END PARALLEL DO
+
+    print*
+    write(*, "(A)") "================================================="
+    write(*, "(A)") "  ENERGY       EX ENERGY      SPIN       E[O]    " 
+    write(*, "(A)") "================================================="
+
+    do AA = 1,nStates
+       sm = 0.d0 
+       do II = 1, dm
+          amp1 = vectors(AA,ii)
+          do JJ = II, dm
+             amp2 = vectors(AA,jj)
+             x = bosonic_tp_index(II,JJ,dm)
+             sm = sm + amp1 * OBS(x)* amp2
+          end do
+       end do
+
+       do II = 1, dm
+          amp1 = vectors(AA,ii)
+          do JJ = 1, II-1
+             amp2 = vectors(AA,jj)
+             x = bosonic_tp_index(JJ,II,dm)
+             sm = sm + amp1 * OBS(x)* amp2
+          end do
+       end do
+
+       
+       write(*,"(2(f12.4),f9.1,f12.4)") energies(AA),energies(AA)-energies(1),spins(AA),sm
+
+       print*
+ end do
+
+ t2 = omp_get_wtime()
+
+ write(*,"(A,f10.1,A,f10.1)") "Time: ", t2-t1, " Total: ", t2-time_Zero 
+
+  end subroutine observable
+    
   subroutine first_mat_vec_prod(z0,z1,z2,v,w,basis,N)
     implicit none
 
