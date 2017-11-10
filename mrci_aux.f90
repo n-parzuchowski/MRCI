@@ -95,8 +95,9 @@ contains
     OUTPUT_DIR=adjustl(OUTPUT_DIR)
     call getenv("MRCI_ME_FILES",ME_DIR)
     ME_DIR=adjustl(ME_DIR)
-    
-    finput = adjustl(finput)
+
+    call check_for_file(INI_DIR,finput)
+    finput = adjustl(finput)    
     open(unit=45,file=trim(INI_DIR)//trim(finput)) 
 
     read(45,*) !!!Enter number of nucleons (Z,N) 
@@ -112,22 +113,30 @@ contains
 
     read(45,*) !!! Enter SP file
     read(45,*) spfile
+    call check_for_file(SP_DIR,spfile)
     
     read(45,*) !!! Enter INT file
     read(45,*) intfile
+    call check_for_file(ME_DIR,intfile)
 
     read(45,*) !!! Enter INT file
     read(45,*) denfile
+    call check_for_file(ME_DIR,denfile)
     
     read(45,*) !Enter REF file
     read(45,*) reffile 
-
+    call check_for_file(INI_DIR,reffile)
+    
     read(45,*) !Enter lawson param
     read(45,*) mbas%law_beta
 
     read(45,*) !Enter lawson file
     read(45,*) lawfile
 
+    if (non_negligible(mbas%law_beta)) then
+       call check_for_file(ME_DIR,lawfile)
+    end if
+       
     read(45,*) !Enter number of observables
     read(45,*) mbas%num_obs
 
@@ -136,6 +145,7 @@ contains
     
     do ii = 1, mbas%num_obs
        read(45,*)  obsfiles(ii)
+       call check_for_file(ME_DIR,obsfiles(ii))
     end do
 
     
@@ -352,6 +362,22 @@ logical function non_negligible(X)
   end if
 
 end function non_negligible
+!=========================================================
+subroutine check_for_file(DIR,file)
+  implicit none
+
+  character(*) :: DIR,file
+  logical :: ex
+
+  inquire( file = trim(adjustl(DIR))//trim(adjustl(file)), exist=ex)
+
+  if (.not. ex) then
+     write(*,"(A)") "Could not find file: "// &
+          trim(adjustl(DIR))//trim(adjustl(file)) 
+     stop
+  end if
+end subroutine check_for_file
+  
 end module mrci_aux
   
   
