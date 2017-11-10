@@ -211,7 +211,7 @@ contains
     character(10) :: fm,fma2,fma1,fme
     logical :: do_read,get_out,found_a1,found_a2
     
-    t1 = omp_get_Wtime()
+    t1 = omp_get_wtime()
     
     allocate(z2(tp_basis%bMax))
 
@@ -260,7 +260,7 @@ contains
     integer(c_int) :: hndle,sz
     character(kind=C_CHAR,len=200) :: buffer
     
-    t1 = omp_get_Wtime()
+    t1 = omp_get_wtime()
     write(*,*)
     write(*,"(A)") "======================================="
     write(*,"(A)") "READING OPERATOR FILE"    
@@ -475,7 +475,7 @@ contains
        end do
     end do
     sz= gzClose(hndle) 
-    t2 = omp_get_Wtime() 
+    t2 = omp_get_wtime() 
     write(*,"(A,f6.1,A,f10.1)") "Time: ", t2-t1, " Total: ", t2-time_Zero 
   end subroutine read_me2b
     
@@ -751,7 +751,7 @@ contains
     integer :: J_min,J_max,JT,jj,ja,jb,A1,A2,q
     real(8) :: sm,dir,ex,t1,t2,omp_get_Wtime
 
-    t1 = omp_get_Wtime() 
+    t1 = omp_get_wtime() 
     print* 
     write(*,"(A)") '=====================================' 
     write(*,"(A)") 'UNNORMAL ORDERING INTERACTION'
@@ -837,7 +837,7 @@ contains
 
     write(*,"(A)") "Unnormal ordering successful" 
     write(*,"(A,f12.4)") "Unnormal-ordered offset: ",z0
-    t2 = omp_get_Wtime() 
+    t2 = omp_get_wtime() 
     write(*,"(A,f8.1,A,f10.1)") "Time: ", t2-t1, " Total: ", t2-time_Zero 
 
   end subroutine unnormal_order

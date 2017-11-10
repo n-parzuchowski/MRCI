@@ -219,9 +219,9 @@ contains
        do q = 1, jbas%Atarg
           brabit(bra(q)) = 1
           ketbit(ket(q)) = 1
-          diffbit = brabit - ketbit
-          rank = sum(abs(diffbit))/2          
        end do
+       diffbit = brabit - ketbit
+       rank = sum(abs(diffbit))/2          
 
 
        if (rank == 1) then

@@ -16,16 +16,21 @@ contains
     type(block_mat),allocatable,dimension(:) :: z2
     integer,dimension(:,:) :: basis
     real(8) :: z0,t3,t4,t5,t6,Eimsrg
-    real(8),allocatable,dimension(:) :: workl,DX,QX,resid,work,workD
+    real(8),allocatable,dimension(:) :: workl,DX,QX,resid,work,workD,MV_stor
     real(8),allocatable,dimension(:,:) :: V,Z
     integer :: lwork,info,ido,ncv,ldv,iparam(11),ipntr(11),dm,x,nthr,omp_get_num_threads
     integer :: ishift,mxiter,nconv,mode,lworkl,ldz,nev,inc,ii,jj,aa,q,eMax
-    real(8) :: tol,sigma,sm,Egs,t1,t2,omp_get_wtime,amp1,amp2,dcgi,spin
+    real(8) :: tol,sigma,sm,Egs,t1,t2,omp_get_wtime,amp1,amp2,dcgi,spin,ddot
     character(1) :: BMAT,HOWMNY 
     character(2) :: which
     logical :: rvec
     logical,allocatable,dimension(:) :: selct
+    real(8) :: bet=0.d0,al=1.d0
+    integer :: incx=1,incy=1
+    
+    !   integer(kind=8) :: matdim
 
+    
     eMax =maxval(jbas%nn)*2
     t1 = omp_get_wtime()
 
@@ -35,7 +40,7 @@ contains
     print*
     
     dm = size(basis(:,1))
-    allocate(HAM(dm*(dm+1)/2))
+    allocate(HAM(dm*(dm+1)/2))   
     HAM=0.d0
 
     write(*,"(A)") "Allocated Hamiltonian storage" 
@@ -81,7 +86,7 @@ contains
     iparam(7) = mode
     ii = 0
 
-    t3 = omp_get_Wtime()
+    t3 = omp_get_wtime()
     do 
        ! so V is the krylov subspace matrix that is being diagonalized
        ! it does not need to be initialized, so long as you have the other 
@@ -89,7 +94,7 @@ contains
        call dsaupd ( ido, bmat, dm, which, nev, tol, resid, &
             ncv, v, ldv, iparam, ipntr, workd, workl, &
             lworkl, info )
-       ! The actual matrix only gets multiplied with the "guess" vector in "matvec_prod" 
+       ! The actual matrix only gets multiplied with the "guess" vector in "mat_vec_prod" 
        
        call progress_bar( ii )
        ii=ii+1
@@ -101,13 +106,15 @@ contains
 
        
        if (ii ==1 )then
+          ! compute matrix elements on the fly and store
           call first_mat_vec_prod(z0,z1,z2,workd(ipntr(1)),workd(ipntr(2)),basis,dm)
        else
-          call mat_vec_prod(z0,z1,z2,workd(ipntr(1)),workd(ipntr(2)),basis,dm)
+          ! fast blas matrix-vec multiply using only lower triangle (L)
+          call dspmv('L',dm,al,HAM,workd(ipntr(1)),incx,bet,workd(ipntr(2)),incy)    
        end if
        
     end do
-    t4 = omp_get_Wtime()
+    t4 = omp_get_wtime()
     write(6,*) 
     write(*,"(A,I5,A,f10.1,A)")  "converged after", ii, " iterations and "&
          ,t4-t3," seconds" 
@@ -128,8 +135,6 @@ contains
     
     
     Egs = DX(1)
-
-
 
     deallocate(HAM)
     write(*,"(A)") "Deallocated Hamiltonian Storage"
@@ -166,31 +171,16 @@ contains
     open(unit=68,file="../output/"//trim(adjustl(prefix))//&
          "_ex_from_mrci.dat")
 
+    allocate(MV_stor(dm))
     print*
     write(*, "(A)") "================================================="
     write(*, "(A)") "  ENERGY       EX ENERGY     J(J+1)      SPIN    " 
     write(*, "(A)") "================================================="
     do AA = 1,10
-       sm = 0.d0 
-       do II = 1, dm
-          amp1 = Z(ii,AA)
-          do JJ = II, dm
-             amp2 = Z(jj,AA)
-             x = bosonic_tp_index(II,JJ,dm)
-             sm = sm + amp1 * Jtot_mat(x)* amp2
-          end do
-       end do
 
-       do II = 1, dm
-          amp1 = Z(ii,AA)
-          do JJ = 1, II-1
-             amp2 = Z(jj,AA)
-             x = bosonic_tp_index(JJ,II,dm)
-             sm = sm + amp1 * Jtot_mat(x)* amp2
-          end do
-       end do
-
-
+       ! fast blas matrix-vec multiply using only lower triangle (L)
+       call dspmv('L',dm,al,Jtot_mat,Z(:,AA),incx,bet,MV_stor,incy)    
+       sm = ddot(dm,Z(:,AA),incx,MV_stor,incy)
        
        spin = (sqrt(sm*4+1.d0 )-1)/2.d0 
        
@@ -208,7 +198,7 @@ contains
     close(67)
     close(68)
 
-    t2 = omp_get_Wtime() 
+    t2 = omp_get_wtime() 
     write(*,"(A,f10.1,A,f10.1)") "Time: ", t2-t1, " Total: ", t2-time_Zero 
 
     vectors = transpose(Z(:,1:nStates))
@@ -222,8 +212,11 @@ contains
     type(block_mat_full),allocatable,dimension(:,:) :: z1    
     type(block_mat),allocatable,dimension(:) :: z2
     integer,dimension(:,:) :: basis
-    real(8) :: z0,t1,t2,sm,amp1,amp2,omp_get_wtime
+    real(8),allocatable,dimension(:) :: MV_stor
+    real(8) :: z0,t1,t2,sm,amp1,amp2,omp_get_wtime,ddot
     integer :: eMax,dm,nthr,x,II,JJ,AA,q,omp_get_num_threads
+    real(8) :: bet=0.d0,al=1.d0
+    integer :: incx=1,incy=1
 
     eMax =maxval(jbas%nn)*2
     t1 = omp_get_wtime()
@@ -235,6 +228,7 @@ contains
     
     dm = size(basis(:,1))
     allocate(OBS(dm*(dm+1)/2))
+    allocate(MV_stor(dm))
     OBS=0.d0
 
     write(*,*)
@@ -268,26 +262,10 @@ contains
     write(*, "(A)") "================================================="
 
     do AA = 1,nStates
-       sm = 0.d0 
-       do II = 1, dm
-          amp1 = vectors(AA,ii)
-          do JJ = II, dm
-             amp2 = vectors(AA,jj)
-             x = bosonic_tp_index(II,JJ,dm)
-             sm = sm + amp1 * OBS(x)* amp2
-          end do
-       end do
 
-       do II = 1, dm
-          amp1 = vectors(AA,ii)
-          do JJ = 1, II-1
-             amp2 = vectors(AA,jj)
-             x = bosonic_tp_index(JJ,II,dm)
-             sm = sm + amp1 * OBS(x)* amp2
-          end do
-       end do
-
-       
+       call dspmv('L',dm,al,OBS,vectors(AA,:),incx,bet,MV_stor,incy)    
+       sm = ddot(dm,vectors(AA,:),incx,MV_stor,incy)
+ 
        write(*,"(2(f12.4),f9.1,f12.4)") energies(AA),energies(AA)-energies(1),spins(AA),sm
 
        print*
@@ -343,13 +321,10 @@ contains
   end subroutine first_mat_vec_prod
 
 
-  subroutine mat_vec_prod(z0,z1,z2,v,w,basis,N)
+  subroutine mat_vec_prod(v,w,basis,N)
     implicit none
     
-    type(block_mat_full),allocatable,dimension(:,:) :: z1    
-    type(block_mat),allocatable,dimension(:) :: z2
     integer,dimension(:,:) :: basis
-    real(8) :: z0
     integer :: N,II,JJ,XX,nthr,q,omp_get_num_threads
     real(8),dimension(N) :: v,w
 
@@ -421,9 +396,9 @@ contains
        do q = 1, jbas%Atarg
           brabit(bra(q)) = 1
           ketbit(ket(q)) = 1
-          diffbit = brabit - ketbit
-          rank = sum(abs(diffbit))/2          
        end do
+       diffbit = brabit - ketbit
+       rank = sum(abs(diffbit))/2          
 
 
        if (rank == 1) then

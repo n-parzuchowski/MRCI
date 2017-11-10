@@ -188,7 +188,8 @@ contains
     
     read(45,*) !!Enter the reference states, one by one
     do ii = 1, num_refs
-       read(45,*) ref(ii,:)
+       read(45,*,iostat=ist) ref(ii,:)
+       if (ist < 0) STOP "REF FILE TOO SHORT"
     end do
     
     close(45)
