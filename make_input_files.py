@@ -46,7 +46,7 @@ scratch_resdir = SCR+"/"+inter+"/res"
 
 short_resdir = "res/"+inter
 
-nsuite_resdir = "/mnt/home/parzuch6/nsuite/res/"+inter
+nsuite_resdir = "/mnt/home/parzuch6/mr-imsrg/res/"+inter
 
 if not os.path.isdir(hfb_resdir):
     os.system("mkdir "+hfb_resdir)
@@ -59,20 +59,28 @@ if not os.path.isdir(scratch_resdir):
         os.system("mkdir "+SCR+"/"+inter )
     os.system("mkdir "+scratch_resdir)
 
-a = raw_input("Enter comma delimited eMax: ")
-eMaxes = a.strip().split(",")
+#a = raw_input("Enter comma delimited eMax: ")
+#eMaxes = a.strip().split(",")
+eMaxes = ["4","6","8","10","12"]
 
-a = raw_input("Enter comma delimited hw: ")
-hws = a.strip().split(",")
+#a = raw_input("Enter comma delimited hw: ")
+#hws = a.strip().split(",")
+hws = ["16","20","24","28"]
 
 reffile = raw_input("Enter reference file name: ")
 
 
-a = raw_input("enter comma delimited MRCI walltimes for each eMax (just an integer for hours): ")
-timesMRCI = a.strip().split(",")
+#a = raw_input("enter comma delimited MRCI walltimes for each eMax (just an integer for hours): ")
+#timesMRCI = a.strip().split(",")
+timesMRCI = ["1","4","4","4","4"] 
+memsNORD=["8","8","10","14","14"]
+timesIMSRG=["4","12","24","40","40"]
+checks=["50","20","10","4","1"]
 
-a = raw_input("enter comma delimited MRCI memories for each eMax (just an integer for gb): ")
-memsMRCI = a.strip().split(",")
+#a = raw_input("enter comma delimited MRCI memories for each eMax (just an integer for gb): ")
+#memsMRCI = a.strip().split(",")
+memsMRCI = ["1","2","4","8","12"] 
+
 
 a = raw_input("should we make IMSRG input files too? (y/n): ")
 if (a.lower() == "y"):
@@ -81,9 +89,9 @@ else:
     imsrg = False
 
 if imsrg:
-    a = raw_input("enter comma delimited IMSRG memories for each eMax (just an integer for gb): ")
-    memsIMSRG = a.strip().split(",")
-
+#    a = raw_input("enter comma delimited IMSRG memories for each eMax (just an integer for gb): ")
+ #   memsIMSRG = a.strip().split(",")
+    memsIMSRG = ["2","4","8","16","26"]
 
 fq = open(names[ZTarg]+str(ATarg)+"_"+inter+"_mrci.bat","w")
 fq.write("#!/bin/bash \n\n")
@@ -124,8 +132,11 @@ for e in eMaxes:
 
         intfile = prefix2 + ".ham.me2b.gz" 
         rhofile = prefix2 + ".lambda.me2b.gz"
+        Hcmfile = intfile
+        Hcmfile = Hcmfile.replace(inter,"Hcm_beta01.00") 
+        Hcmfile = Hcmfile.replace("ham","obs")
 
-        if (e < 12):
+        if (int(e) < 12):
             spfile = "hk"+e+".sps"
         else:
             spfile = "hk"+e+"_lmax10.sps"
@@ -148,7 +159,14 @@ for e in eMaxes:
         fl.write(rhofile+"\n")
         fl.write("### Enter .ref file\n")
         fl.write(reffile+"\n")
-
+        fl.write("### Enter Lawson parameter\n")
+        fl.write("0.0\n")
+        fl.write("### Enter Lawson file\n")
+        fl.write(Hcmfile+"\n")
+        fl.write("### Enter number of observables\n")
+        fl.write("1\n")
+        fl.write("### Enter observable files\n")
+        fl.write(Hcmfile+"\n")
         fl.close()
         
         ### write MRCI pbs file
@@ -170,6 +188,7 @@ for e in eMaxes:
         fl.write("#PBS -m a\n\n")
         fl.write("cd $HOME/MRCI/src\n\n")
         fl.write("export OMP_NUM_THREADS="+ppn+"\n\n")
+        fl.write("export MRCI_ME_FILES="+nsuite_resdir+"/\n\n")
         fl.write("./run_mrci "+prefix+".ini\n\n")
         fl.write("qstat -f ${PBS_JOBID}\nexit 0")
 
@@ -203,11 +222,11 @@ for e in eMaxes:
         if (int(e) > 10):
             fl.write("./solve_hfb Nucl="+names[Zref]+str(Aref)+" eMax="+e \
                          +" E3Max=14 lMax=10 hwHO="+hw+" IntID="+inter+\
-                         " ResDir="+hfb_resdir+"\n\n")
+                         " ResDir="+short_resdir+"\n\n")
         else:
             fl.write("./solve_hfb Nucl="+names[Zref]+str(Aref)+" eMax="+e \
                          +" E3Max=14 hwHO="+hw+" IntID="+inter+\
-                         " ResDir="+hfb_resdir+"\n\n")
+                         " ResDir="+short_resdir+"\n\n")
             
         fl.write("qstat -f ${PBS_JOBID}\nexit 0")
 
@@ -222,10 +241,11 @@ for e in eMaxes:
             
         ### write NORD pbs file
 
-        time = "04:00:00"
-        ppn = "16"    
+        time = "4"
+        time = "0"+time+":00:00" 
+        mem = memsNORD[etick]+"gb"
+        ppn = "8"
 
-        mem = "14gb"        
         
         fl=open("pbsNORD_"+prefix2,"w")
         
@@ -237,7 +257,7 @@ for e in eMaxes:
         fl.write("#PBS -N "+prefix2+"_NORD\n")
         fl.write("#PBS -M nathan.parz@gmail.com\n")
         fl.write("#PBS -m a\n\n")
-        fl.write("cd $HOME/nsuite\n")
+        fl.write("cd $HOME/mr-imsrg\n")
         fl.write("source to_source_bfr_make\n\n")
         fl.write("export OMP_NUM_THREADS="+ppn+"\n\n")
         fl.write("cp "+hfb_resdir+"/"+names[Zref]+str(Aref)+\
@@ -249,16 +269,23 @@ for e in eMaxes:
             fl.write("./normalorder_obs RefType=PNP ResDir="+short_resdir+\
                          " IntID=Hcm_beta01.00 "+short_resdir+"/"+names[Zref]+str(Aref)+\
                          "_eMax"+ex+thing+"_hwHO"+hwx+".hfbc\n\n")
+
+            # fl.write("rm "+nsuite_resdir+"/"+names[Zref]+str(Aref)+\
+            #              "_eMax"+ex+thing+"_hwHO"+hwx+".hfbc\n\n")
+            
+            fl.write("rm "+nsuite_resdir+"/"+prefix2+".mref\n\n")
+            
         else:
             fl.write("./normalorder_ham  ResDir="+short_resdir+\
                          " "+short_resdir+"/"+names[Zref]+str(Aref)+"_eMax"+ex \
                          +thing+"_hwHO"+hwx+".hfbc\n")
-            fl.write("./normalorder_obs  ResDir="+nsuite_resdir+\
-                         " IntID=Hcm_bet01.00 "+short_resdir+"/"+names[Zref]+str(Aref)+"_eMax"+ex \
+            fl.write("./normalorder_obs  ResDir="+short_resdir+\
+                         " IntID=Hcm_beta01.00 "+short_resdir+"/"+names[Zref]+str(Aref)+"_eMax"+ex \
                          +thing+"_hwHO"+hwx+".hfbc\n\n")
 
-        fl.write("rm "+nsuite_resdir+"/"+names[Zref]+str(Aref)+\
-                     "_eMax"+ex+thing+"_hwHO"+hwx+".hfbc\n\n")
+            
+
+            
         fl.write("qstat -f ${PBS_JOBID}\nexit 0")
 
         fl.close()
@@ -269,8 +296,10 @@ for e in eMaxes:
 
         ### write MAGNUS pbs file
 
+        time = timesIMSRG[etick]
+        time = time+":00:00" 
         
-        time = "24:00:00"
+#        time =  "24:00:00"
         mem = memsIMSRG[etick]+"gb"
         ppn = "16"
         
@@ -285,18 +314,20 @@ for e in eMaxes:
         fl.write("#PBS -N "+prefix2+"_MAGNUS\n")
         fl.write("#PBS -M nathan.parz@gmail.com\n")
         fl.write("#PBS -m a\n\n")
-        fl.write("cd $HOME/nsuite\n")
+        fl.write("cd $HOME/mr-imsrg\n")
         fl.write("source to_source_bfr_make\n\n")
         fl.write("export OMP_NUM_THREADS="+ppn+"\n\n")
 
         if (yes == "n"):
-            fl.write("./solveimsrg_magnus ObsID=Hcm_beta01.00 RefType=Multi ResDir="\
-                         +short_resdir+" EtaType=BrillouinMinimal WriteAll sMax=5000.0 "+short_resdir \
-                         +"/"+prefix2+".mref\n\n")
+            fl.write("./solveimsrg_magnus ObsID=Hcm_beta01.00 RefType=PNP ResDir="\
+                         +short_resdir+" EtaType=BrillouinMinimal Check="+checks[etick]+" WriteAll sMax=5000.0 "+short_resdir \
+                         +"/"+names[Zref]+str(Aref)+"_eMax"+ex+thing+"_hwHO"+hwx+".hfbc\n\n")
+            
         else:
             fl.write("./solveimsrg_magnus ObsID=Hcm_beta01.00 ResDir="\
-                         +short_resdir+" EtaType=BrillouinMinimal WriteAll sMax=5000.0 "+short_resdir \
-                         +"/"+prefix2+".mref\n\n")
+                         +short_resdir+" EtaType=BrillouinMinimal Check="+checks[etick]+" WriteAll sMax=5000.0 "+short_resdir \
+                         +"/"+names[Zref]+str(Aref)+\
+                         "_eMax"+ex+thing+"_hwHO"+hwx+".hfbc\n\n")
             
         fl.write("qstat -f ${PBS_JOBID}\nexit 0")
 
@@ -306,6 +337,7 @@ for e in eMaxes:
 
         
         time = "24:00:00"
+        if etick>8: time="40:00:00"
         mem = memsIMSRG[etick]+"gb"
         ppn = "16"
         
@@ -320,15 +352,16 @@ for e in eMaxes:
         fl.write("#PBS -N "+prefix2+"_RESTART\n")
         fl.write("#PBS -M nathan.parz@gmail.com\n")
         fl.write("#PBS -m a\n\n")
-        fl.write("cd $HOME/nsuite\n")
+        fl.write("cd $HOME/mr-imsrg\n")
         fl.write("source to_source_bfr_make\n\n")
         fl.write("export OMP_NUM_THREADS="+ppn+"\n\n")
 
         fl.write("cd  "+nsuite_resdir+"\n")
-        fl.write("ln -s ${SCRATCH}/"+inter+"/res/"+prefix2+".magnus.chk \n" )
-        fl.write("cd $HOME/nsuite \n\n")
-        fl.write("./solveimsrg_magnus RefType=Multi ResDir="\
-                     +short_resdir+" EtaType=BrillouinMinimal WriteAll sMax=5000.0 " \
+        fl.write("ln -s ${SCRATCH}/"+inter+"/res/"+inter+'/'+prefix2+".magnus.chk \n" )
+        fl.write("cd $HOME/mr-imsrg \n\n")
+        fl.write("./solveimsrg_magnus RefType=PNP ResDir="\
+                     +short_resdir+" EtaType=BrillouinMinimal "\
+                     +"ObsID=Hcm_beta01.00 Check="+checks[etick]+" WriteAll sMax=5000.0 " \
                      +short_resdir+"/"+prefix2+".magnus.chk\n\n")
 
         fl.write("qstat -f ${PBS_JOBID}\nexit 0")
