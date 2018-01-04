@@ -1,7 +1,8 @@
-FC = gfortran $(TFLAGS)  
+FC = gfortran $(FFLAGS)  
 CXX = g++ $(CXXFLAGS) 
 
 p1 = run_mrci
+p2 = print 
 
 FFLAGS = -O3 -fopenmp
 TFLAGS = -g -O0 -fbounds-check -fopenmp
@@ -9,17 +10,20 @@ PFLAGS = -O3 -pg
 
 CXXFLAGS = -std=c++11 -O3
 
-LIBS =  -lz -larpack -llapack #-L/user/local/lib/ -llapack -lblas  -lz
+LIBS =  -lz -larpack -llapack -lblas
 
 obfiles = bin
 modfiles = md
 
-F90SRC=$(wildcard *.f90)
-OBJ = $(patsubst %.f90, $(obfiles)/%.o, $(wildcard *.f90))  
+F90SRC=$(wildcard mrci_*.f90)
+OBJ = $(patsubst mrci_%.f90, $(obfiles)/mrci_%.o, $(wildcard mrci_*.f90))  
 OBJ_f = $(patsubst %.f, $(obfiles)/%.o, $(wildcard *.f))  
 
-all: $(OBJ_f) $(OBJ)
+all:	$(OBJ_f) $(OBJ)
 	${FC} $^ -o ${p1} -J$(modfiles) ${LIBS}
+
+print:	bin/mrci_aux.o bin/anglib.o bin/print_system.o
+	${FC} $^ -o ${p2} -J$(modfiles) ${LIBS} 
 
 $(OBJ): | $(obfiles)
 $(OBJ_f): | $(obfiles)
@@ -27,6 +31,10 @@ $(OBJ_f): | $(obfiles)
 $(obfiles):
 	@mkdir -p $@
 	@mkdir -p $(modfiles)
+
+print_system.o:
+	${FC} -c -o $@ $< -J$(modfiles) ${LIBS}
+
 
 $(obfiles)/%.o: %.f
 	${FC} -c -o $@ $< -J$(modfiles) ${LIBS}

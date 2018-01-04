@@ -18,6 +18,7 @@ pbs*
 *~
 *.dat
 run_mrci
+print
 get_HO*
 truncate
 fort*

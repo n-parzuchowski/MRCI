@@ -51,8 +51,10 @@ program mrci_main
   Eimsrg = ME0B
   call unnormal_order(me0b,me1b,me2b)
 
-  call diagonalize(me0b,me1b,me2b,basis,Eimsrg,10) 
+  call diagonalize(me0b,me1b,me2b,basis,Eimsrg,20) 
 
+  call write_results(energies,spins,vectors)
+  
   !!! handle any observables
   do q = 1, mbas%num_obs
      call read_me2b(Op2b,obs_files(q))
@@ -64,7 +66,7 @@ program mrci_main
      write(*,"(A,f12.4)") "Normal-ordered Op0: ", Op0b
      call unnormal_order(Op0b,Op1b,Op2b)
 
-     call observable(Op0b,Op1b,Op2b,basis,10)            
+     call observable(Op0b,Op1b,Op2b,basis,20)            
   end do
   
 end program mrci_main

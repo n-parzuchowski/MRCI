@@ -96,8 +96,14 @@ contains
     call getenv("MRCI_ME_FILES",ME_DIR)
     ME_DIR=adjustl(ME_DIR)
 
+   
     call check_for_file(INI_DIR,finput)
     finput = adjustl(finput)    
+    if (finput(1:12) == "../inifiles/") then
+       finput = finput(13:200) 
+       finput = adjustl(finput)
+    end if
+    
     open(unit=45,file=trim(INI_DIR)//trim(finput)) 
 
     read(45,*) !!!Enter number of nucleons (Z,N) 
@@ -377,7 +383,60 @@ subroutine check_for_file(DIR,file)
      stop
   end if
 end subroutine check_for_file
+!==================================================================
+!==================================================================
+subroutine write_results(e,s,v)
+  implicit none
+
+  real(8),dimension(:) :: e,s
+  real(8),dimension(:,:) :: v
+  integer :: Nstates,dim
+
+  Nstates = size(e)
+  dim = size(v(1,:))
+  print* 
+  write(*,"(A)") "Writing Eigensystem to "//"../output/"//trim(adjustl(prefix))//&
+       "_eigensystem.dat"   
+  open(unit=39,file="../output/"//trim(adjustl(prefix))//&
+       "_eigensystem.dat",form="unformatted")
+
+  write(39) Nstates, dim
+  write(39) e
+  write(39) s
+  write(39) v
+  close(39)
   
+end subroutine write_results
+!==================================================================
+!==================================================================
+subroutine read_results(e,s,v)
+  implicit none
+
+  real(8),allocatable,dimension(:) :: e,s
+  real(8),allocatable,dimension(:,:) :: v
+  integer :: Nstates,dim
+
+
+
+  print* 
+  write(*,"(A)") "Reading Eigensystem from "//"../output/"//trim(adjustl(prefix))//&
+       "_eigensystem.dat"   
+  open(unit=39,file="../output/"//trim(adjustl(prefix))//&
+       "_eigensystem.dat",form="unformatted")
+
+  read(39) Nstates, dim
+
+  allocate(e(Nstates),s(Nstates))
+  allocate(v(Nstates,dim))
+
+  
+  read(39) e
+  read(39) s
+  read(39) v
+  close(39)
+  
+end subroutine read_results
+
 end module mrci_aux
   
   

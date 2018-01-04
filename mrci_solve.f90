@@ -108,6 +108,12 @@ contains
        if (ii ==1 )then
           ! compute matrix elements on the fly and store
           call first_mat_vec_prod(z0,z1,z2,workd(ipntr(1)),workd(ipntr(2)),basis,dm)
+          open(unit=99,file="matrix")
+          do Q= 1, dm*(dm+1)/2
+             write(99,*) HAM(Q)
+          end do
+          close(99)
+             
        else
           ! fast blas matrix-vec multiply using only lower triangle (L)
           call dspmv('L',dm,al,HAM,workd(ipntr(1)),incx,bet,workd(ipntr(2)),incy)    
@@ -176,7 +182,7 @@ contains
     write(*, "(A)") "================================================="
     write(*, "(A)") "  ENERGY       EX ENERGY     J(J+1)      SPIN    " 
     write(*, "(A)") "================================================="
-    do AA = 1,10
+    do AA = 1,nstates
 
        ! fast blas matrix-vec multiply using only lower triangle (L)
        call dspmv('L',dm,al,Jtot_mat,Z(:,AA),incx,bet,MV_stor,incy)    
@@ -186,7 +192,7 @@ contains
        
        write(*,"(3(f12.4),f9.1)") DX(AA),DX(AA)-EIMSRG,sm,spin
        
-       spins(AA) = spin
+       spins(AA) = sm!spin
        print*
     end do
 

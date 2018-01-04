@@ -22,12 +22,19 @@ OBJ_f = $(patsubst %.f, $(obfiles)/%.o, $(wildcard *.f))
 all: $(OBJ_f) $(OBJ)
 	${FC} $^ -o ${p1} ${LIB_ARPCK} -module $(modfiles) -lz
 
+print:	bin/mrci_aux.o bin/anglib.o bin/print_system.o
+	${FC} $^ -o ${p2} -module $(modfiles) 
+
+
 $(OBJ): | $(obfiles)
 $(OBJ_f): | $(obfiles)
 
 $(obfiles):
 	@mkdir -p $@
 	@mkdir -p $(modfiles)
+
+print_system.o:
+	${FC} -c -o $@ $< -module $(modfiles) 
 
 $(obfiles)/%.o: %.f
 	${FC} -c -o $@ $< -module $(modfiles) ${LIBS}
